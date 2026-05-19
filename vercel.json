@@ -1,4 +1,4 @@
 {
-  "installCommand": "yarn install --ignore-engines",
+  "installCommand": "pnpm install --no-frozen-lockfile",
   "framework": "nextjs"
 }
