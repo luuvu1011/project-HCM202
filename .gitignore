@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase Admin SDK private key — KHÔNG commit
+*firebase-adminsdk*.json
+key\ firebase.txt
+"key firebase.txt"
+
+# Claude Code
+.claude/

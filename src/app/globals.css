@@ -1,26 +1,513 @@
 @import "tailwindcss";
 
+/* ─── Vietnamese Cinematic Color System ────────────────────────────────────
+   Emotional palette: crimson sacrifice · bronze ancestry · amber warmth
+   jade resilience · saffron spirit · lacquer night · parchment memory
+   ──────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ── Base depths — lacquered Vietnamese night ── */
+  --ocean-deep:  #060910;
+  --ocean-mid:   #0e1a28;
+  --ocean-glow:  #1c3c58;
+
+  /* ── Bronze-gold — Đông Sơn drums, ancient coins ── */
+  --gold:        #c48a28;
+  --gold-soft:   #d89c3c;
+
+  /* ── Parchment — aged Vietnamese paper, antique lacquer ── */
+  --parchment:       #e8d2a8;
+  --parchment-muted: #b89668;
+
+  /* ── Deep crimson — flag, martyrs, dignified sacrifice ── */
+  --red-accent:  #9a1c1c;
+
+  /* ── Atmospheric tokens ── */
+  --fog:          rgba(240, 204, 144, 0.08);   /* amber-saffron mist */
+  --glass:        rgba(10, 20, 38, 0.58);
+  --glass-border: rgba(196, 138, 40, 0.22);    /* bronze border */
+  --background:   var(--ocean-deep);
+  --foreground:   #f0e4c4;                     /* warm ivory text */
+
+  /* ── NEW: Vietnamese palette extensions ── */
+  --crimson:      #8c1818;                     /* deep flag crimson */
+  --crimson-glow: rgba(140, 24, 24, 0.28);
+  --jade:         #1c3c2c;                     /* dark jade — land of Vietnam */
+  --jade-glow:    #2c6844;
+  --jade-soft:    rgba(28, 60, 44, 0.32);
+  --amber:        #e8a820;                     /* Hội An lantern */
+  --saffron:      #e4b840;                     /* incense / monk robe */
+  --saffron-soft: rgba(228, 184, 64, 0.06);
+  --bronze:       #a06820;                     /* Đông Sơn drum */
+
+  /* ── Vietnam storytelling palette (long-scroll sections) ── */
+  --vn-red:    #C8102E;   /* Vietnam flag red */
+  --vn-gold:   #FFD700;   /* patriotic golden yellow */
+  --vn-navy:   #0B1F3A;   /* deep historical navy */
+  --vn-brown:  #5C4033;   /* aged parchment brown */
+  --vn-paper:  #F5E6C8;   /* vintage paper cream */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ocean-deep:      var(--ocean-deep);
+  --color-ocean-mid:       var(--ocean-mid);
+  --color-ocean-glow:      var(--ocean-glow);
+  --color-gold:            var(--gold);
+  --color-gold-soft:       var(--gold-soft);
+  --color-parchment:       var(--parchment);
+  --color-parchment-muted: var(--parchment-muted);
+  --color-red-accent:      var(--red-accent);
+  --color-fog:             var(--fog);
+  --color-glass:           var(--glass);
+  --color-glass-border:    var(--glass-border);
+  --color-background:      var(--background);
+  --color-foreground:      var(--foreground);
+  /* Vietnamese extensions */
+  --color-crimson:         var(--crimson);
+  --color-jade:            var(--jade);
+  --color-jade-glow:       var(--jade-glow);
+  --color-amber:           var(--amber);
+  --color-saffron:         var(--saffron);
+  --color-bronze:          var(--bronze);
+  /* Vietnam storytelling palette */
+  --color-vn-red:   var(--vn-red);
+  --color-vn-gold:  var(--vn-gold);
+  --color-vn-navy:  var(--vn-navy);
+  --color-vn-brown: var(--vn-brown);
+  --color-vn-paper: var(--vn-paper);
+  /* ── Font aliases: dự án chỉ dùng MỘT font (Be Vietnam Pro) ── */
+  /* Các class font-display/font-cinzel/font-playfair vẫn hoạt động,
+     nhưng render ra cùng font với body để đảm bảo nhất quán. */
+  --font-sans:        var(--font-body);
+  --font-display:     var(--font-body);
+  --font-serif:       var(--font-body);
+  --font-decorative:  var(--font-body);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Scrollbar ─────────────────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 3px; }
+::-webkit-scrollbar-track { background: #030508; }
+::-webkit-scrollbar-thumb {
+  background: rgba(196, 138, 40, 0.30);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(196, 138, 40, 0.52); }
+
+/* ─── Fonts ─────────────────────────────────────────────────────────────── */
+/* Tất cả class font-* render bằng Be Vietnam Pro (cho phép giữ class cũ trong TSX) */
+.font-display,
+.font-cinzel,
+.font-playfair,
+.font-serif,
+.font-decorative {
+  font-family: var(--font-body), system-ui, sans-serif;
 }
 
+/* ─── Body — Vietnamese night atmosphere ────────────────────────────────── */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #FFFFFF;
+  color: #1a0506;
+  font-family: var(--font-body), system-ui, sans-serif;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─── Trắng-Đỏ patriotic utilities ─────────────────────────────────────── */
+.section-white  { background: #FFFFFF; color: #1a0506; }
+.section-cream  { background: #FDF8F3; color: #1a0506; }
+.section-red    { background: #C8102E; color: #FFFFFF; }
+.section-dark   { background: #1a0506; color: #FFFFFF; }
+.section-parchment { background: #FDF5E8; color: #3a1010; }
+
+.text-patriot-title  { color: #1a0506; }
+.text-patriot-body   { color: #4a1820; }
+.text-patriot-muted  { color: rgba(74, 24, 32, 0.72); }
+.text-patriot-red    { color: #C8102E; }
+.text-on-red         { color: #FFFFFF; }
+.text-gold-on-red    { color: #FFD700; }
+
+.border-patriot { border-color: rgba(200, 16, 46, 0.18); }
+
+/* Card trên nền trắng */
+.card-white {
+  background: #FFFFFF;
+  border: 1px solid rgba(200, 16, 46, 0.12);
+  box-shadow: 0 4px 24px rgba(200, 16, 46, 0.06), 0 1px 4px rgba(0,0,0,0.06);
+}
+
+/* Card trên nền đỏ */
+.card-on-red {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.22);
+  backdrop-filter: blur(12px);
+}
+
+/* Đường kẻ đỏ */
+.divider-red {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #C8102E 30%, #C8102E 70%, transparent);
+}
+
+/* Nút trắng trên nền đỏ */
+.btn-white {
+  background: #FFFFFF;
+  color: #C8102E;
+  border: 2px solid #FFFFFF;
+  font-weight: 700;
+  transition: all 0.25s ease;
+}
+.btn-white:hover {
+  background: transparent;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+/* Nút đỏ trên nền trắng */
+.btn-red {
+  background: #C8102E;
+  color: #FFFFFF;
+  border: 2px solid #C8102E;
+  font-weight: 700;
+  transition: all 0.25s ease;
+}
+.btn-red:hover {
+  background: #9a0c22;
+  border-color: #9a0c22;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(200, 16, 46, 0.35);
+}
+.btn-red:active { transform: translateY(0) scale(0.97); }
+
+/* ─── Scroll bar mỏng đỏ (cho panel nội dung) ──────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200,16,46,0.35) transparent;
+}
+*::-webkit-scrollbar       { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(200,16,46,0.30); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(200,16,46,0.55); }
+
+/* ─── Focus ring đỏ ─────────────────────────────────────────────────────── */
+button:focus-visible, a:focus-visible {
+  outline: 2px solid #C8102E;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* ─── Selection đỏ ──────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(200, 16, 46, 0.18);
+  color: #1a0506;
+}
+
+/* ─── Selection ─────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(196, 138, 40, 0.38);
+  color: #060910;
+}
+
+/* ─── Animated Film Grain ───────────────────────────────────────────────── */
+@keyframes grain-drift {
+  0%,  100% { transform: translate(0,    0);    }
+  15%       { transform: translate(-1.2%, -1.8%); }
+  30%       { transform: translate(0.9%,  1.4%);  }
+  45%       { transform: translate(-0.7%, 2.1%);  }
+  60%       { transform: translate(1.5%, -0.8%);  }
+  75%       { transform: translate(-1.0%, 0.6%);  }
+  90%       { transform: translate(0.4%, -1.6%);  }
+}
+
+.vv-grain::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  z-index: 50;
+  opacity: 0.038;
+  animation: grain-drift 6s steps(8) infinite;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Cinematic vignette */
+.vv-grain::after {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  background: radial-gradient(
+    ellipse 110% 85% at 50% 50%,
+    transparent 48%,
+    rgba(2, 4, 10, 0.56) 100%
+  );
+}
+
+/* ─── Map Frame ─────────────────────────────────────────────────────────── */
+.vv-map-frame {
+  border-radius: 28px;
+  box-shadow:
+    0 0 0 1px rgba(196, 138, 40, 0.12),
+    0 40px 120px rgba(0, 0, 0, 0.60),
+    inset 0 0 80px rgba(6, 9, 16, 0.45);
+}
+
+/* ─── Story Emphasis Quote ──────────────────────────────────────────────── */
+.vv-story-emphasis {
+  border-left: 3px solid rgba(196, 138, 40, 0.55);
+  padding-left: 1.25rem;
+  text-align: left;
+}
+@media (min-width: 640px) {
+  .vv-story-emphasis { padding-left: 1.5rem; }
+}
+
+/* ─── Cinematic Utilities ───────────────────────────────────────────────── */
+
+/* Line mask for clip-path reveal animations */
+.vv-line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+/* Vietnamese amber-bronze text gradient */
+.vv-gold-text {
+  background: linear-gradient(135deg, #f0c060 0%, #c48a28 45%, #d89c3c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Thin bronze divider line */
+.vv-divider {
+  width: 52px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196, 138, 40, 0.72), transparent);
+  margin: 1.5rem auto;
+}
+
+/* Cinematic section glow */
+.vv-section-glow {
+  box-shadow:
+    0 0 120px rgba(140, 24, 24, 0.12),
+    0 0 240px rgba(196, 138, 40, 0.06);
+}
+
+/* Letterbox bars */
+.vv-letterbox::before,
+.vv-letterbox::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: rgba(2, 4, 10, 0.94);
+  z-index: 20;
+}
+.vv-letterbox::before { top: 0; }
+.vv-letterbox::after  { bottom: 0; }
+
+/* Bronze shimmer border */
+.vv-shimmer-border { position: relative; }
+.vv-shimmer-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgba(196, 138, 40, 0.34),
+    rgba(255, 255, 255, 0.03) 38%,
+    rgba(140, 24, 24, 0.18) 68%,
+    rgba(196, 138, 40, 0.24)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask:         linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Amber/saffron light shaft — Hội An lantern, incense column */
+.vv-light-shaft {
+  background: linear-gradient(
+    175deg,
+    rgba(228, 168, 60, 0.00) 0%,
+    rgba(228, 168, 60, 0.06) 35%,
+    rgba(228, 168, 60, 0.02) 65%,
+    rgba(228, 168, 60, 0.00) 100%
+  );
+  transform-origin: top center;
+}
+
+/* Crimson pulse — emotionally intense overlay */
+.vv-crimson-pulse {
+  background: radial-gradient(ellipse at 50% 50%, rgba(140, 24, 24, 0.12), transparent 65%);
+}
+
+/* Jade accent line */
+.vv-jade-line {
+  width: 52px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(44, 104, 68, 0.65), transparent);
+  margin: 1.5rem auto;
+}
+
+/* ─── Premium cinematic utility classes ─────────────────────────────────── */
+
+/* Lưu ý: .font-cinzel và .font-playfair được alias về Be Vietnam Pro
+   ở phần "Fonts" phía trên. Giữ letter-spacing đặc trưng cho .font-cinzel
+   để tiêu đề trang trọng vẫn có cảm giác chữ dãn. */
+.font-cinzel {
+  letter-spacing: 0.05em;
+}
+
+/* Glow text effects */
+.glow-gold {
+  text-shadow: 0 0 24px rgba(255,215,0,0.55), 0 0 48px rgba(255,215,0,0.22);
+}
+.glow-red {
+  text-shadow: 0 0 24px rgba(200,16,46,0.55), 0 0 48px rgba(200,16,46,0.22);
+}
+.glow-white {
+  text-shadow: 0 0 18px rgba(255,255,255,0.35), 0 0 36px rgba(255,255,255,0.12);
+}
+
+/* Premium glassmorphism card */
+.glass-card {
+  background: rgba(255,255,255,0.04);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+/* Red accent glass card */
+.glass-card-red {
+  background: rgba(200,16,46,0.07);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(200,16,46,0.22);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(200,16,46,0.08);
+}
+
+/* Gold glow button */
+.btn-patriot {
+  background: linear-gradient(135deg, #C8102E 0%, #8a0c1e 100%);
+  color: #FFD700;
+  border: 1px solid rgba(255,215,0,0.3);
+  box-shadow:
+    0 0 32px rgba(200,16,46,0.45),
+    0 4px 20px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  transition: all 0.3s ease;
+}
+.btn-patriot:hover {
+  box-shadow:
+    0 0 48px rgba(200,16,46,0.65),
+    0 8px 28px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.15);
+  transform: translateY(-1px) scale(1.02);
+}
+.btn-patriot:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Animated light ray */
+@keyframes light-ray-sweep {
+  0%   { opacity: 0; transform: skewX(-8deg) translateX(-120%); }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: skewX(-8deg) translateX(120%); }
+}
+.light-ray-sweep {
+  animation: light-ray-sweep 6s ease-in-out infinite;
+}
+
+/* Floating particle */
+@keyframes float-particle {
+  0%   { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+  20%  { opacity: 1; }
+  80%  { opacity: 0.6; }
+  100% { transform: translateY(-120px) translateX(30px) scale(0.5); opacity: 0; }
+}
+.particle { animation: float-particle linear infinite; }
+
+/* Pulsing glow ring */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(200,16,46,0.4); }
+  50%       { box-shadow: 0 0 40px rgba(200,16,46,0.7), 0 0 80px rgba(200,16,46,0.2); }
+}
+.glow-pulse-red { animation: glow-pulse 2.5s ease-in-out infinite; }
+
+/* Shimmer line */
+@keyframes shimmer-line {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shimmer-gold-line {
+  background: linear-gradient(90deg, transparent 20%, rgba(255,215,0,0.6) 50%, transparent 80%);
+  background-size: 200% auto;
+  animation: shimmer-line 2.5s linear infinite;
+}
+
+/* ─── Game — Multiplayer Cinematic ─────────────────────────────────────── */
+
+@keyframes float-slow {
+  from { transform: translateY(0) scale(1); }
+  to   { transform: translateY(-12px) scale(1.05); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Answer option pulse when correct */
+@keyframes correct-burst {
+  0%   { box-shadow: 0 0 0px rgba(44,104,68,0); }
+  50%  { box-shadow: 0 0 30px rgba(44,104,68,0.5), 0 0 60px rgba(44,104,68,0.2); }
+  100% { box-shadow: 0 0 12px rgba(44,104,68,0.25); }
+}
+.answer-correct { animation: correct-burst 0.6s ease-out forwards; }
+
+/* Leaderboard rank change flash */
+@keyframes rank-up-flash {
+  0%   { background: rgba(196,138,40,0); }
+  30%  { background: rgba(196,138,40,0.2); }
+  100% { background: rgba(196,138,40,0); }
+}
+.rank-up { animation: rank-up-flash 0.8s ease-out; }
+
+/* Player glow pulse on correct answer */
+@keyframes player-glow-burst {
+  0%   { box-shadow: 0 0 0px currentColor; }
+  40%  { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+  100% { box-shadow: 0 0 8px currentColor; }
+}
+.player-glow-burst { animation: player-glow-burst 1s ease-out; }
+
+/* Timer urgency pulse */
+@keyframes timer-urgent {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.timer-urgent { animation: timer-urgent 0.6s ease-in-out infinite; }
+
+/* Phase transition gradient sweep */
+@keyframes phase-sweep {
+  from { background-position: 100% 50%; }
+  to   { background-position: 0% 50%; }
+}
+
+/* Cinematic slide-in for questions */
+@keyframes question-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
+}
+.question-reveal { animation: question-reveal 0.8s cubic-bezier(0.22,1,0.36,1) forwards; }
