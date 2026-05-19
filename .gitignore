@@ -47,3 +47,6 @@ key\ firebase.txt
 
 # Claude Code
 .claude/
+
+.vercel
+package-lock.json
