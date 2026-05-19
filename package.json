@@ -33,15 +33,7 @@
     "three": "^0.184.0",
     "zustand": "^5.0.13"
   },
-  "overrides": {
-    "@tsparticles/canvas-utils": "4.0.0",
-    "@tsparticles/move-base": "3.9.1",
-    "@tsparticles/react": "4.0.0",
-    "@tsparticles/slim": "4.0.0",
-    "@tsparticles/engine": "4.0.0",
-    "@tsparticles/basic": "4.0.0"
-  },
-  "devDependencies": {
+"devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
