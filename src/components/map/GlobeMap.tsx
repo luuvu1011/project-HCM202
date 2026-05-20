@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls, Line, Html, Stars } from "@react-three/drei";
 import * as THREE from "three";
@@ -27,9 +27,9 @@ const PORTS = [
 
 // ─── Vietnamese territories (always shown, not part of the journey) ─────────
 const VN_TERRITORIES = [
-  { id: "phu-quoc",   name: "Phú Quốc",   lat: 10.227, lon: 103.961 },
-  { id: "hoang-sa",   name: "Hoàng Sa",   lat: 16.500, lon: 112.000 },
-  { id: "truong-sa",  name: "Trường Sa",  lat:  9.700, lon: 114.000 },
+  { id: "phu-quoc",  name: "Phú Quốc",  lat: 10.227, lon: 103.961 },
+  { id: "hoang-sa",  name: "Hoàng Sa",  lat: 16.500, lon: 112.000 },
+  { id: "truong-sa", name: "Trường Sa", lat:  9.700, lon: 114.000 },
 ];
 
 const RADIUS = 2;
@@ -327,6 +327,13 @@ function VnTerritoryMarkers() {
         const [x, y, z] = positions[i];
         const outward = new THREE.Vector3(x, y, z).normalize();
 
+        // Phú Quốc: move label BELOW dot (negative y in world space = downward on screen,
+        // since OrbitControls auto-rotates around the y-axis only).
+        const labelPos: [number, number, number] =
+          t.id === "phu-quoc"
+            ? [outward.x * 0.22, outward.y * 0.22 - 0.35, outward.z * 0.22]
+            : [outward.x * 0.22, outward.y * 0.22, outward.z * 0.22];
+
         return (
           <group key={t.id} position={[x, y, z]}>
             {/* Soft halo */}
@@ -349,7 +356,7 @@ function VnTerritoryMarkers() {
 
             {/* Label */}
             <Html
-              position={[outward.x * 0.22, outward.y * 0.22, outward.z * 0.22]}
+              position={labelPos}
               distanceFactor={6}
               style={{ pointerEvents: "none" }}
             >
