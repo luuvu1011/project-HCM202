@@ -16,7 +16,7 @@ export const GAME_PHASES: GamePhase[] = [
     accentColorRgb: '200,16,46',
     backgroundFrom: '#1a0506',
     backgroundTo: '#3d0c0c',
-    questionCount: 3,
+    questionCount: 2,
   },
   {
     id: 'marseille',
@@ -50,13 +50,13 @@ export const GAME_PHASES: GamePhase[] = [
     accentColorRgb: '26,75,140',
     backgroundFrom: '#040810',
     backgroundTo: '#081020',
-    questionCount: 2,
+    questionCount: 1,
   },
   {
     id: 'london',
     index: 3,
     name: 'London',
-    year: '1914–1919',
+    year: '1913–1917',
     location: 'London, Anh Quốc',
     country: 'Anh',
     coordinates: [51.5074, -0.1278],
@@ -84,7 +84,7 @@ export const GAME_PHASES: GamePhase[] = [
     accentColorRgb: '140,24,24',
     backgroundFrom: '#0e0509',
     backgroundTo: '#1c0810',
-    questionCount: 3,
+    questionCount: 2,
   },
   {
     id: 'moscow',
@@ -135,7 +135,7 @@ export const GAME_PHASES: GamePhase[] = [
     accentColorRgb: '44,104,68',
     backgroundFrom: '#02080a',
     backgroundTo: '#041410',
-    questionCount: 3,
+    questionCount: 2,
   },
 ];
 

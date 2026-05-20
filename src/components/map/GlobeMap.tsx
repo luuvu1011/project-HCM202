@@ -25,6 +25,73 @@ const PORTS = [
   { id: "quang-chau",   name: "Quảng Châu",    lat: 23.129, lon: 113.264, year: "1924–1927", color: "#FFD700" },
 ];
 
+// ─── Historical route waypoints [lat, lon] — sea via Suez, land via Trans-Siberian ──
+// Each leg corresponds to consecutive PORTS. Waypoints follow real geography so arcs
+// stay over water on sea legs and over land on rail legs.
+const ROUTE_LEGS: [number, number][][] = [
+  // Leg 1: Bến Nhà Rồng → Marseille (1911, SEA via Suez Canal on Latouche-Tréville)
+  [
+    [10.77, 106.70],   // Saigon
+    [3.50, 105.00],    // South China Sea
+    [1.30, 103.85],    // Singapore
+    [5.93,  79.86],    // Colombo (Sri Lanka)
+    [12.78, 45.04],    // Aden
+    [20.00, 38.50],    // Red Sea
+    [31.27, 32.30],    // Port Said (Suez exit)
+    [34.00, 25.00],    // East Mediterranean
+    [37.50, 11.00],    // South of Sicily
+    [41.00,  8.00],    // West of Sardinia
+    [43.30,  5.37],    // Marseille
+  ],
+  // Leg 2: Marseille → New York (1911–1912, SEA via Gibraltar across Atlantic)
+  [
+    [43.30,   5.37],   // Marseille
+    [38.00,   0.00],   // West Mediterranean
+    [36.14,  -5.34],   // Gibraltar Strait
+    [37.00, -12.00],   // Off Portugal
+    [39.00, -25.00],   // Azores area
+    [41.00, -45.00],   // Mid Atlantic
+    [41.00, -60.00],   // West Atlantic
+    [40.71, -74.01],   // New York
+  ],
+  // Leg 3: New York → London (1913, SEA across North Atlantic)
+  [
+    [40.71, -74.01],   // New York
+    [44.00, -55.00],   // Atlantic
+    [50.00, -35.00],   // North Atlantic
+    [52.00, -15.00],   // Approaching UK
+    [51.51,  -0.13],   // London
+  ],
+  // Leg 4: London → Paris (1917, SEA across Channel + LAND)
+  [
+    [51.51, -0.13],    // London
+    [51.00,  1.40],    // Dover Strait
+    [50.95,  1.85],    // Calais
+    [49.55,  2.31],    // Northern France
+    [48.86,  2.35],    // Paris
+  ],
+  // Leg 5: Paris → Liên Xô/Moscow (1923, LAND by train through Europe)
+  [
+    [48.86,  2.35],    // Paris
+    [50.85,  4.35],    // Brussels
+    [52.52, 13.40],    // Berlin
+    [52.23, 21.01],    // Warsaw
+    [53.90, 27.57],    // Minsk
+    [55.76, 37.62],    // Moscow
+  ],
+  // Leg 6: Moscow → Quảng Châu (1924, LAND Trans-Siberian + China rail)
+  [
+    [55.76,  37.62],   // Moscow
+    [56.84,  60.61],   // Yekaterinburg (cross Urals)
+    [55.04,  82.93],   // Novosibirsk
+    [52.29, 104.30],   // Irkutsk
+    [47.92, 106.92],   // Ulaanbaatar
+    [39.90, 116.40],   // Beijing
+    [30.59, 114.31],   // Wuhan
+    [23.13, 113.26],   // Guangzhou
+  ],
+];
+
 // ─── Vietnamese territories (always shown, not part of the journey) ─────────
 const VN_TERRITORIES = [
   { id: "phu-quoc",  name: "Phú Quốc",  lat: 10.227, lon: 103.961 },
@@ -173,18 +240,37 @@ function Atmosphere() {
 }
 
 // ─── Route arcs (red traveled / gold current / dim future) ──────────────────
-function RouteArcs({ activeIdx }: { activeIdx: number }) {
-  const positions = useMemo(
-    () => PORTS.map((p) => latLonToVec3(p.lat, p.lon)),
-    [],
+// Build a smooth path through historical waypoints, hugging just above the globe
+// surface (so sea legs stay over water, land legs stay over land).
+function legPath(legPoints: [number, number][], stepsPerSegment = 18): THREE.Vector3[] {
+  const waypoints = legPoints.map(
+    ([lat, lon]) => new THREE.Vector3(...latLonToVec3(lat, lon)),
   );
+  const pts: THREE.Vector3[] = [];
+  const SURFACE_LIFT = 0.035; // tiny constant lift so the line doesn't z-fight the globe texture
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const a = waypoints[i];
+    const b = waypoints[i + 1];
+    for (let j = 0; j <= stepsPerSegment; j++) {
+      // Skip first point of subsequent segments to avoid duplicate vertices
+      if (i > 0 && j === 0) continue;
+      const t = j / stepsPerSegment;
+      const p = new THREE.Vector3().lerpVectors(a, b, t);
+      p.normalize().multiplyScalar(RADIUS + SURFACE_LIFT);
+      pts.push(p);
+    }
+  }
+  return pts;
+}
+
+function RouteArcs({ activeIdx }: { activeIdx: number }) {
+  const legPaths = useMemo(() => ROUTE_LEGS.map((leg) => legPath(leg)), []);
 
   return (
     <group>
-      {PORTS.slice(0, -1).map((_, i) => {
+      {legPaths.map((pts, i) => {
         const done = i < activeIdx;
         const current = i === activeIdx - 1;
-        const pts = arcPoints(positions[i], positions[i + 1]);
         return (
           <Line
             key={i}
@@ -327,11 +413,12 @@ function VnTerritoryMarkers() {
         const [x, y, z] = positions[i];
         const outward = new THREE.Vector3(x, y, z).normalize();
 
-        // Phú Quốc: move label BELOW dot (negative y in world space = downward on screen,
-        // since OrbitControls auto-rotates around the y-axis only).
+        // Phú Quốc: move label WEST (geographic) on the globe — west tangent vector.
+        // East tangent ∝ (z, 0, -x), so west = (-z, 0, x), normalized.
+        const west = new THREE.Vector3(-z, 0, x).normalize();
         const labelPos: [number, number, number] =
           t.id === "phu-quoc"
-            ? [outward.x * 0.22, outward.y * 0.22 - 0.35, outward.z * 0.22]
+            ? [outward.x * 0.22 + west.x * 0.32, outward.y * 0.22, outward.z * 0.22 + west.z * 0.32]
             : [outward.x * 0.22, outward.y * 0.22, outward.z * 0.22];
 
         return (

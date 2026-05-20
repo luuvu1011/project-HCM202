@@ -106,9 +106,9 @@ const MAP_SCALE = 1.0;
 
 /* Vị trí các đảo (lat/lon thực → normalized, x nén lại cho vừa scene) */
 const ISLANDS = [
-  { label: "Hoàng Sa",  pos: [ 1.26,  0.07] as [number, number] }, // ~16.5°N, 111.9°E
-  { label: "Trường Sa", pos: [ 1.52, -0.69] as [number, number] }, // ~10°N, 114°E
-  { label: "Phú Quốc",  pos: [-0.49, -0.78] as [number, number] }, // 10.2°N, 104°E (actual: -0.490, -0.779)
+  { label: "Hoàng Sa",  pos: [ 1.26,  0.07] as [number, number], labelOffset: [ 0.12,  0.10, 0] as [number, number, number] }, // ~16.5°N, 111.9°E
+  { label: "Trường Sa", pos: [ 1.52, -0.69] as [number, number], labelOffset: [ 0.12,  0.10, 0] as [number, number, number] }, // ~10°N, 114°E
+  { label: "Phú Quốc",  pos: [-0.49, -0.78] as [number, number], labelOffset: [-0.05, -0.22, 0] as [number, number, number] }, // 10.2°N, 104°E — label moved BELOW to clear Vietnam mainland
 ];
 
 /* ─── Bounding box + centroid từ outline thực ───────────────────────────── */
@@ -341,7 +341,7 @@ function HanoiStar({ bounds }: { bounds: ReturnType<typeof getOutlineBounds> }) 
 }
 
 /* ─── Marker đảo — vòng pulse kép ──────────────────────────────────────── */
-function IslandMarker({ pos, label }: { pos: [number, number, number]; label: string }) {
+function IslandMarker({ pos, label, labelOffset }: { pos: [number, number, number]; label: string; labelOffset: [number, number, number] }) {
   const sphRef  = useRef<THREE.Mesh>(null);
   const ring1   = useRef<THREE.Mesh>(null);
   const ring2   = useRef<THREE.Mesh>(null);
@@ -374,7 +374,7 @@ function IslandMarker({ pos, label }: { pos: [number, number, number]; label: st
         <ringGeometry args={[0.055, 0.078, 40]} />
         <meshBasicMaterial color="#ff6020" transparent opacity={0} side={THREE.DoubleSide} toneMapped={false} depthWrite={false} />
       </mesh>
-      <Html position={[0.12, 0.10, 0]} center distanceFactor={3}
+      <Html position={labelOffset} center distanceFactor={3}
         style={{ pointerEvents: "none", whiteSpace: "nowrap", color: "#ffe98a",
           fontFamily: "var(--font-body, sans-serif)", fontSize: "11px", fontWeight: 700,
           letterSpacing: "0.18em", textTransform: "uppercase",
@@ -524,7 +524,8 @@ function Scene({ reduced }: { reduced: boolean }) {
       {ISLANDS.map((isle) => (
         <IslandMarker key={isle.label}
           pos={[isle.pos[0] * MAP_SCALE - bounds.cx, isle.pos[1] * MAP_SCALE - bounds.cy, 0.28]}
-          label={isle.label} />
+          label={isle.label}
+          labelOffset={isle.labelOffset} />
       ))}
     </>
   );

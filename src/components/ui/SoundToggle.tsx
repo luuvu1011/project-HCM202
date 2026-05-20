@@ -5,8 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useYouTubeAudio } from "@/hooks/useYouTubeAudio";
 
 // Background music — Vietnamese patriotic song (YouTube)
-// Source: https://www.youtube.com/watch?v=yP12NDUV2oU
-const BG_VIDEO_ID = "yP12NDUV2oU";
+// Source: https://www.youtube.com/watch?v=ZpCjyf99fq0
+const BG_VIDEO_ID = "ZpCjyf99fq0";
 const INITIAL_VOLUME = 0.45;
 
 export function SoundToggle() {

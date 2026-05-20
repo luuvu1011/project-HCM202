@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import {
@@ -13,23 +13,22 @@ import {
 interface Props { emotion: string; particlesReady?: boolean; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
- * CHIM LẠC ĐÔNG SƠN — Sacred Lạc Bird, National Totem of Việt Nam
+ * CHÂN DUNG HỒ CHÍ MINH — Drone-show portrait built from light dots
  *
- * Faithfully reconstructed from iconographic analysis of Đông Sơn bronze drums
- * (trống đồng Ngọc Lũ, ~2500 years old):
+ * Reconstructed from iconic photographs of President Hồ Chí Minh, emphasising
+ * the most universally recognised features:
  *
- *  • Species basis: Crane/Heron (Sếu/Cò) — elegant wading birds of the paddy
- *  • Long straight pointed beak (mỏ dài thẳng, nhọn) — aerodynamic silhouette
- *  • Prominent upright head crest (mào đứng) — 5-feather tuft
- *  • Elegant S-curved neck (cổ cong hình chữ S) — crane characteristic
- *  • Three-layer wing structure: inner arm → secondary feathers → 7 primaries
- *  • Total wingspan: ~2.8× body width — dramatic spread
- *  • 10 long flowing tail feathers (lông đuôi dài) — often longer than body
- *  • Two trailing legs (chân dài thon) — extended in flight posture
- *  • Eye: single bright amber-gold dot
- *  • Color palette from bronze drum surface: warm ivory, Đông Sơn gold (#C68B1A),
- *    copper bronze (#8B5524), amber wing-tips, red accent at tail extremities
- *  • Ascending/soaring posture — symbolizes spiritual elevation & aspiration
+ *  • High forehead (trán cao, rộng) — sweeping back to a receding hairline
+ *  • Thin, short side hair / brushed-back grey hair (tóc bạc chải ngược)
+ *  • Kind, slightly almond-shaped eyes (đôi mắt hiền)
+ *  • Thin moustache (ria mép mỏng)
+ *  • Long, narrow, tapering chin-beard (chòm râu cằm) — the signature feature
+ *  • Đại Cán stand-collar suit (áo đại cán cổ đứng) — Vietnamese leader uniform
+ *  • Slim neck and gentle shoulder slope
+ *
+ * Aesthetic: warm-white & soft-gold LED dots, drone-light feel — each point a
+ *   distinct light source with gentle hover wobble (≤1cm) and twinkle.
+ * Palette: ivory-white #FFF8E0, warm gold #FFD080, amber accent #FFAA40
  * ══════════════════════════════════════════════════════════════════════════════ */
 
 function srnd(s: number): number {
@@ -37,212 +36,369 @@ function srnd(s: number): number {
   return x - Math.floor(x);
 }
 
-function flapAngle(t: number): number { return Math.sin(t * 1.35) * 0.52; }
 function flapVelocity(t: number): number { return Math.abs(Math.cos(t * 1.35)); }
 
-type BirdDot = {
+type PortraitDot = {
   bx: number; by: number; bz: number;
-  flapFactor: number; anchorY: number;
   size: number; twinkleFreq: number; phase: number; delay: number;
-  tint: 0 | 1 | 2 | 3;   // 0=ivory, 1=bronze-gold, 2=amber, 3=deep-copper
-  tailIdx?: number;        // which tail feather (for independent flutter)
+  hover: number;                // independent hover-wobble amplitude (drone flutter)
+  tint: 0 | 1 | 2 | 3;          // 0=pure white, 1=warm white, 2=warm gold, 3=amber shadow
 };
 
 /* ─────────────────────────────────────────────────────────────────────────────
- * buildLacBirdDots — full Đông Sơn chim Lạc anatomy
+ * buildHoChiMinhDotsFromImage — sample a real photograph of President Hồ Chí Minh
+ *   into drone-show LED dot positions.
  *
- * Bird is oriented facing camera, beak pointing UP, wings spread L/R:
- *   y+  = up (beak)      y-  = down (tail/legs)
- *   x+  = right wing     x-  = left wing
- *   z   = depth
+ *  1. Detect background polarity by sampling image corners.
+ *  2. Threshold-mask the foreground (the face / portrait silhouette).
+ *  3. Subsample candidate pixels down to ~targetDots.
+ *  4. Map pixel (x,y) → scene (sx, sy) with image aspect preserved.
+ *  5. Assign tint by brightness band: bright = white LED, mid = warm gold,
+ *     dark = amber accent.
  * ────────────────────────────────────────────────────────────────────────── */
-function buildLacBirdDots(): BirdDot[] {
-  const dots: BirdDot[] = [];
-  let idx = 0;
+function buildHoChiMinhDotsFromImage(
+  imageData: ImageData,
+  maxDots = 8500,
+): PortraitDot[] {
+  const W = imageData.width;
+  const H = imageData.height;
+  const data = imageData.data;
+  const dots: PortraitDot[] = [];
 
-  const push = (
-    pts: Array<{ x:number; y:number; z?:number; flap?:number; anchorY?:number; tint?:0|1|2|3; sz?:number; tailIdx?:number }>,
-    defTint: 0|1|2|3 = 0,
-  ) => {
-    for (const p of pts) {
-      const j = (d: number) => (srnd(idx * 7.3 + d) - 0.5) * 0.010;
+  // Probe background brightness from the full edge ring
+  let bgSum = 0, bgCount = 0;
+  for (let x = 0; x < W; x++) {
+    for (const y of [0, H - 1]) {
+      const i = (y * W + x) * 4;
+      bgSum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      bgCount++;
+    }
+  }
+  for (let y = 0; y < H; y++) {
+    for (const x of [0, W - 1]) {
+      const i = (y * W + x) * 4;
+      bgSum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      bgCount++;
+    }
+  }
+  const bg = bgSum / bgCount;
+  const bgIsDark = bg < 128;
+  // Very tight threshold so we capture even subtle tonal detail
+  const threshold = bgIsDark ? bg + 12 : bg - 12;
+
+  // Scene coordinates: preserve aspect, fit into ~2.3 wide × matching height
+  // (bigger portrait so facial detail reads clearly)
+  const aspect = H / W;
+  const sceneW = 2.3;
+  const sceneH = sceneW * aspect;
+  const cellW = sceneW / W;
+  const cellH = sceneH / H;
+
+  // Scan every pixel — grid-aligned dot per foreground pixel
+  let idx = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) * 4;
+      const a = data[i + 3];
+      if (a < 100) continue;
+      const brightness = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const isFg = bgIsDark ? brightness > threshold : brightness < threshold;
+      if (!isFg) continue;
+
+      // Brightness normalized within foreground range (0 = at threshold, 1 = extreme)
+      const bNorm = bgIsDark
+        ? Math.min(1, (brightness - threshold) / Math.max(20, 255 - threshold))
+        : Math.min(1, (threshold - brightness) / Math.max(20, threshold));
+
+      // Very small jitter — keep image sharp, just enough to look organic
+      const jx = (srnd(idx * 7.1) - 0.5) * cellW * 0.20;
+      const jy = (srnd(idx * 9.7) - 0.5) * cellH * 0.20;
+      const sx = (x / W - 0.5) * sceneW + jx;
+      const sy = -(y / H - 0.5) * sceneH + jy;
+
+      // 4 tonal bands → tighter tonal mapping of facial features
+      let tint: 0 | 1 | 2 | 3;
+      if (bNorm > 0.72) tint = 0;        // strong highlights → pure white
+      else if (bNorm > 0.45) tint = 1;   // upper midtone → warm white
+      else if (bNorm > 0.20) tint = 2;   // mid → warm gold
+      else tint = 3;                     // shadows → amber
+
       dots.push({
-        bx: p.x + j(1), by: p.y + j(2),
-        bz: (p.z ?? 0) + (srnd(idx * 5.1) - 0.5) * 0.10,
-        flapFactor: p.flap ?? 0, anchorY: p.anchorY ?? 0,
-        size: (p.sz ?? 0.048) + srnd(idx * 11.3) * 0.022,
-        twinkleFreq: 1.4 + srnd(idx * 13.7) * 3.0,
+        bx: sx,
+        by: sy,
+        bz: (srnd(idx * 5.1) - 0.5) * 0.012,
+        // Small, fairly uniform LED size — dense grid stays crisp & non-overlapping
+        size: 0.013 + bNorm * 0.008,
+        twinkleFreq: 1.6 + srnd(idx * 13.7) * 2.4,
         phase: srnd(idx * 17.3) * Math.PI * 2,
-        delay: srnd(idx * 19.7) * 0.45,
-        tint: p.tint ?? defTint,
-        tailIdx: p.tailIdx,
+        delay: srnd(idx * 19.7) * 0.5,
+        // Much smaller hover — keeps portrait still & legible
+        hover: 0.0015 + srnd(idx * 23.7) * 0.0025,
+        tint,
       });
       idx++;
     }
-  };
-
-  // ══ HEAD — compact round head (đầu tròn nhỏ) ══════════════════════════════
-  for (let i = 0; i < 30; i++) {
-    const a = (i / 30) * Math.PI * 2;
-    push([{ x: Math.cos(a) * 0.11, y: Math.sin(a) * 0.11 + 0.50, tint: 0 }]);
-  }
-  // Head interior fill
-  for (let i = 0; i < 10; i++) {
-    push([{ x: (srnd(i*13+1)-0.5)*0.16, y: (srnd(i*17+3)-0.5)*0.16+0.50, tint: 0, sz: 0.036 }]);
   }
 
-  // ══ AMBER EYE — single bright dot (mắt) ══════════════════════════════════
-  push([{ x: 0.04, y: 0.52, tint: 2, sz: 0.068 }]);
-
-  // ══ MÀO ĐẦU — 5-feather upright crest ════════════════════════════════════
-  const crestFeathers = [
-    { x: -0.08, y: 0.72, sz: 0.040 },
-    { x: -0.04, y: 0.77, sz: 0.044 },
-    { x:  0.00, y: 0.80, sz: 0.048 }, // tallest center feather
-    { x:  0.04, y: 0.76, sz: 0.044 },
-    { x:  0.08, y: 0.71, sz: 0.040 },
-  ];
-  for (const cf of crestFeathers) {
-    for (let i = 0; i < 6; i++) {
-      const t = i / 5;
-      push([{ x: cf.x * (1-t*0.3), y: 0.61 + t * (cf.y-0.61), tint: 1, sz: cf.sz*(1-t*0.4) }]);
-    }
-  }
-
-  // ══ MỎ DÀI — long straight beak pointing up (mỏ dài thẳng) ══════════════
-  for (let i = 0; i < 14; i++) {
-    const t = i / 13;
-    push([{ x: 0.06*t, y: 0.61 + t * 0.26, tint: i > 9 ? 1 : 0, sz: 0.044 - t * 0.022 }]);
-  }
-
-  // ══ CỔ S-CURVE — elegant crane S-neck (cổ cong hình chữ S) ══════════════
-  for (let i = 0; i < 24; i++) {
-    const t = i / 23;
-    // S-curve: bulges right then left as it descends from head to body
-    const nx = Math.sin(t * Math.PI) * 0.09 - Math.sin(t * Math.PI * 2) * 0.03;
-    const ny = 0.50 - t * 0.46; // from y=0.50 down to y=0.04
-    const nw = 0.032 + t * 0.016; // neck widens toward body
-    push([{ x: nx, y: ny, tint: 0, sz: nw }]);
-    // Second strand for neck width
-    if (t > 0.2 && t < 0.8) push([{ x: nx + 0.022, y: ny, tint: 0, sz: nw*0.7 }]);
-  }
-
-  // ══ THÂN — streamlined oval body (thân hình ô-van thon) ══════════════════
-  for (let i = 0; i < 52; i++) {
-    const a = (i / 52) * Math.PI * 2;
-    push([{ x: Math.cos(a) * 0.18, y: Math.sin(a) * 0.27 + 0.00, tint: i%4===0?1:0 }]);
-  }
-  for (let i = 0; i < 28; i++) {
-    const r = srnd(i*17+1), a = srnd(i*23+5) * Math.PI * 2;
-    push([{ x: Math.cos(a)*0.14*r, y: Math.sin(a)*0.22*r, tint: 0, sz: 0.036 }]);
-  }
-
-  // ══ CÁNH — three-layer wings (cánh 3 lớp) ════════════════════════════════
-  for (const side of [-1, 1] as const) {
-    const shX = side * 0.18, shY = 0.04;
-
-    // Layer 1: Inner arm bone (cánh tay trong)
-    for (let i = 0; i < 18; i++) {
-      const t = i / 17, ang = -0.06;
-      push([{ x: shX + Math.cos(ang)*0.48*t*side, y: shY + Math.sin(ang)*0.48*t, flap: t*0.45, anchorY: shY, tint: 0, sz: 0.042 }]);
-    }
-
-    // Layer 2: Secondary feathers — 7 feathers fanning from mid-wing
-    const midX = shX + side * 0.50, midY = shY + 0.02;
-    for (let f = 0; f < 7; f++) {
-      const tF = f / 6;
-      const fAng = -0.32 + tF * 0.48;
-      const fLen = 0.52 + Math.sin(tF * Math.PI) * 0.22;
-      for (let i = 1; i < 13; i++) {
-        const t = i / 12;
-        push([{ x: midX + Math.cos(fAng)*fLen*t*side, y: midY + Math.sin(fAng)*fLen*t, flap: 0.45 + t*0.40, anchorY: shY, tint: t > 0.72 ? 2 : 0, sz: 0.040 }]);
+  // Cap at maxDots — uniform stride keeps spatial coverage
+  if (dots.length > maxDots) {
+    const stride = dots.length / maxDots;
+    const kept: PortraitDot[] = [];
+    for (let i = 0; i < dots.length; i++) {
+      if (Math.floor(i / stride) !== Math.floor((i - 1) / stride)) {
+        kept.push(dots[i]);
       }
     }
-
-    // Layer 3: Primary feathers — 7 dramatic pointed tips (lông cánh sơ cấp)
-    const tipBaseX = shX + side * 1.00, tipBaseY = shY + 0.14;
-    for (let f = 0; f < 7; f++) {
-      const tF = f / 6;
-      const fAng = 0.06 + tF * 0.56;
-      const fLen = 0.36 + tF * 0.20;
-      for (let i = 1; i < 11; i++) {
-        const t = i / 10;
-        push([{ x: tipBaseX + Math.cos(fAng)*fLen*t*side, y: tipBaseY + Math.sin(fAng)*fLen*t, flap: 1.0, anchorY: shY, tint: 1, sz: 0.038 + tF*0.008 }]);
-      }
-    }
-
-    // Wing leading edge highlight (viền cánh trước)
-    for (let i = 0; i < 22; i++) {
-      const t = i / 21, ang = -0.08 + t * 0.68, len = 0.45 + t * 0.80;
-      push([{ x: shX + Math.cos(ang)*len*side, y: shY + Math.sin(ang)*len, flap: t, anchorY: shY, tint: 1, sz: 0.044 + t*0.036 }]);
-    }
-
-    // Wing trailing edge (viền sau — darker, gives depth)
-    for (let i = 0; i < 14; i++) {
-      const t = i / 13, ang = 0.00 + t * 0.55, len = 0.42 + t * 0.70;
-      push([{ x: shX + Math.cos(ang)*len*side, y: shY + Math.sin(ang)*len - 0.12, flap: t*0.85, anchorY: shY, tint: 3, sz: 0.036 }]);
-    }
-  }
-
-  // ══ LÔNG ĐUÔI — 10 long flowing tail feathers (đặc trưng nổi bật nhất) ══
-  const tailBase = { x: 0, y: -0.28 };
-  const N_TAIL = 10;
-  for (let f = 0; f < N_TAIL; f++) {
-    const tF = f / (N_TAIL - 1); // 0=left, 1=right
-    const spread = tF - 0.5; // -0.5 to +0.5
-    const ang = -Math.PI / 2 + spread * 0.72; // -36° to +36° from downward
-    const centerT = 1 - Math.abs(spread) * 2; // 1 at center
-    const length = 0.70 + centerT * 0.45; // 0.70–1.15 units — longer than body!
-    const N_S = 22;
-    for (let i = 1; i < N_S; i++) {
-      const t = i / (N_S - 1);
-      // Slight natural curve at feather tip
-      const curve = t * t * 0.10 * spread;
-      const fx = tailBase.x + Math.cos(ang + curve) * length * t;
-      const fy = tailBase.y + Math.sin(ang + curve) * length * t;
-      push([{
-        x: fx, y: fy,
-        tint: f===0 || f===N_TAIL-1 ? 2 : (t > 0.68 ? 1 : 0),
-        sz: 0.036 + t * 0.018,
-        tailIdx: f,  // store feather index for independent flutter
-      }]);
-    }
-  }
-
-  // ══ CHÂN DÀI — two trailing legs (chân dài thon, trailing in flight) ══════
-  for (const side of [-1, 1] as const) {
-    const legBase = { x: side * 0.07, y: -0.26 };
-    const legAng = -Math.PI / 2 - side * 0.16; // slight outward trail
-    const N_L = 16;
-    for (let i = 0; i < N_L; i++) {
-      const t = i / (N_L - 1);
-      push([{
-        x: legBase.x + Math.cos(legAng) * 0.42 * t,
-        y: legBase.y + Math.sin(legAng) * 0.42 * t,
-        tint: i > 13 ? 1 : 0,  // feet slightly gold
-        sz: 0.030 + t * 0.010,
-      }]);
-    }
-    // Foot / toenails (ngón chân)
-    for (let toe = 0; toe < 3; toe++) {
-      const toeAng = legAng + (toe - 1) * 0.4;
-      push([{ x: legBase.x + Math.cos(legAng)*0.42 + Math.cos(toeAng)*0.06, y: legBase.y + Math.sin(legAng)*0.42 + Math.sin(toeAng)*0.06, tint: 1, sz: 0.028 }]);
-    }
+    return kept;
   }
 
   return dots;
 }
 
-/* ── Lạc Bird renderer with wing flap + tail flutter ─────────────────────── */
-function LacBird({ reduced }: { reduced: boolean }) {
+/* Procedural fallback (used only if the photo fails to load) ────────────── */
+function buildHoChiMinhDots(): PortraitDot[] {
+  const dots: PortraitDot[] = [];
+  let idx = 0;
+
+  const push = (
+    pts: Array<{ x: number; y: number; z?: number; tint?: 0 | 1 | 2 | 3; sz?: number }>,
+    defTint: 0 | 1 | 2 | 3 = 0,
+  ) => {
+    for (const p of pts) {
+      const j = (d: number) => (srnd(idx * 7.3 + d) - 0.5) * 0.008;
+      dots.push({
+        bx: p.x + j(1),
+        by: p.y + j(2),
+        bz: (p.z ?? 0) + (srnd(idx * 5.1) - 0.5) * 0.06,
+        size: (p.sz ?? 0.032) + srnd(idx * 11.3) * 0.012,
+        twinkleFreq: 1.8 + srnd(idx * 13.7) * 2.6,
+        phase: srnd(idx * 17.3) * Math.PI * 2,
+        delay: srnd(idx * 19.7) * 0.55,
+        hover: 0.004 + srnd(idx * 23.7) * 0.010,
+        tint: p.tint ?? defTint,
+      });
+      idx++;
+    }
+  };
+
+  // ══ FACE OVAL OUTLINE — narrow oval, slightly elongated chin ═════════════
+  for (let i = 0; i < 56; i++) {
+    const a = (i / 56) * Math.PI * 2;
+    // Slightly more elongated at chin (lower y)
+    const ry = Math.sin(a) < 0 ? 0.36 : 0.38;
+    push([{ x: Math.cos(a) * 0.40, y: Math.sin(a) * ry + 0.18, tint: 0 }]);
+  }
+
+  // ══ HIGH FOREHEAD — light fill in upper face (đặc trưng: trán cao) ═══════
+  for (let i = 0; i < 18; i++) {
+    const r = srnd(i * 13 + 1), a = srnd(i * 23 + 5) * Math.PI * 2;
+    push([{ x: Math.cos(a) * 0.30 * r, y: 0.32 + Math.sin(a) * 0.10 * r, tint: 0, sz: 0.028 }]);
+  }
+
+  // ══ HAIR — back-swept, receding hairline (tóc bạc chải ngược) ════════════
+  // Top crown (sparse, receding)
+  for (let i = 0; i < 22; i++) {
+    const t = i / 21;
+    const a = Math.PI + t * Math.PI;       // top semicircle
+    const r = 0.36 - Math.abs(Math.cos(a)) * 0.06; // slight flattening
+    push([{ x: Math.cos(a) * r, y: Math.sin(a) * 0.16 + 0.58, tint: 1, sz: 0.036 }]);
+  }
+  // Side hair (left + right, thin)
+  for (const side of [-1, 1] as const) {
+    for (let i = 0; i < 10; i++) {
+      const t = i / 9;
+      push([{ x: side * (0.36 + t * 0.03), y: 0.45 - t * 0.25, tint: 1, sz: 0.030 }]);
+    }
+  }
+  // Hair strand suggestions across forehead-hairline
+  for (let i = 0; i < 14; i++) {
+    const t = i / 13;
+    const x = -0.30 + t * 0.60;
+    const y = 0.52 + Math.sin(t * Math.PI) * 0.08;
+    push([{ x, y, tint: 1, sz: 0.030 }]);
+  }
+
+  // ══ EYEBROWS — thin, slightly arched (chân mày mỏng) ═════════════════════
+  for (const side of [-1, 1] as const) {
+    for (let i = 0; i < 10; i++) {
+      const t = i / 9;
+      const x = side * (0.10 + t * 0.20);
+      const y = 0.20 + Math.sin(t * Math.PI) * 0.02 + (side === -1 ? 0 : 0);
+      push([{ x, y, tint: 1, sz: 0.026 }]);
+    }
+  }
+
+  // ══ EYES — small, kind, almond shape (đôi mắt hiền) ══════════════════════
+  for (const side of [-1, 1] as const) {
+    // Eye outline
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      push([{ x: side * 0.19 + Math.cos(a) * 0.045, y: 0.115 + Math.sin(a) * 0.022, tint: 0, sz: 0.022 }]);
+    }
+    // Pupil (small bright accent)
+    push([{ x: side * 0.19, y: 0.115, tint: 2, sz: 0.040 }]);
+  }
+
+  // ══ NOSE — straight, medium bridge ═══════════════════════════════════════
+  for (let i = 0; i < 9; i++) {
+    const t = i / 8;
+    push([{ x: srnd(i * 9 + 1) * 0.012 - 0.004, y: 0.08 - t * 0.16, tint: 0, sz: 0.024 }]);
+  }
+  // Nose tip
+  push([
+    { x: -0.025, y: -0.085, tint: 0, sz: 0.028 },
+    { x:  0.025, y: -0.085, tint: 0, sz: 0.028 },
+    { x:  0.000, y: -0.095, tint: 0, sz: 0.030 },
+  ]);
+
+  // ══ MOUSTACHE — thin band above mouth (ria mép mỏng) ═════════════════════
+  for (let i = 0; i < 16; i++) {
+    const t = i / 15;
+    const x = -0.13 + t * 0.26;
+    const y = -0.155 + Math.sin(t * Math.PI) * 0.010;
+    push([{ x, y, tint: 1, sz: 0.024 }]);
+  }
+
+  // ══ MOUTH — subtle gentle smile line ═════════════════════════════════════
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    const x = -0.10 + t * 0.20;
+    const y = -0.205 + Math.sin(t * Math.PI) * 0.008;
+    push([{ x, y, tint: 0, sz: 0.022 }]);
+  }
+
+  // ══ CHÒM RÂU — LONG TAPERING CHIN BEARD (signature feature) ══════════════
+  // Two parallel strands gently converging downward, with cross-hatch fill
+  const beardStart = -0.215;  // just below chin
+  const beardEnd   = -0.58;   // far below, prominent
+  const N_BEARD = 36;
+  for (let i = 0; i < N_BEARD; i++) {
+    const t = i / (N_BEARD - 1);
+    const taper = 1 - t * t * 0.85;            // strong tapering toward tip
+    const halfW = 0.075 * taper;
+    const y = beardStart - t * (beardStart - beardEnd) * -1; // beardStart→beardEnd (negatives)
+    // Edges
+    push([
+      { x: -halfW, y, tint: t > 0.6 ? 2 : 1, sz: 0.028 - t * 0.010 },
+      { x:  halfW, y, tint: t > 0.6 ? 2 : 1, sz: 0.028 - t * 0.010 },
+    ]);
+    // Centerline interior — denser at top, sparser at tip
+    if (t < 0.85 && i % 2 === 0) {
+      push([{ x: (srnd(i * 31) - 0.5) * halfW * 1.4, y, tint: 1, sz: 0.022 }]);
+    }
+  }
+  // Beard tip — a small bright cluster at the very bottom
+  push([
+    { x: 0,     y: beardEnd - 0.02, tint: 2, sz: 0.032 },
+    { x: -0.01, y: beardEnd - 0.01, tint: 2, sz: 0.026 },
+    { x:  0.01, y: beardEnd - 0.01, tint: 2, sz: 0.026 },
+  ]);
+
+  // ══ NECK — slim, partly hidden by beard ══════════════════════════════════
+  for (let i = 0; i < 12; i++) {
+    const t = i / 11;
+    const y = -0.22 - t * 0.30;
+    push([
+      { x: -0.12 - t * 0.02, y, tint: 0, sz: 0.024 },
+      { x:  0.12 + t * 0.02, y, tint: 0, sz: 0.024 },
+    ]);
+  }
+
+  // ══ ĐẠI CÁN COLLAR — stand-collar Vietnamese leader uniform ══════════════
+  // V-line collar opening at neck base
+  for (let i = 0; i < 20; i++) {
+    const t = i / 19;
+    const side = t < 0.5 ? -1 : 1;
+    const tt = t < 0.5 ? t * 2 : (1 - t) * 2;
+    const x = side * (0.04 + tt * 0.28);
+    const y = -0.55 - tt * 0.10;
+    push([{ x, y, tint: 1, sz: 0.030 }]);
+  }
+  // Stand-collar top edge (horizontal line just under chin/beard area)
+  for (let i = 0; i < 18; i++) {
+    const t = i / 17;
+    const x = -0.34 + t * 0.68;
+    const y = -0.54 + Math.abs(x) * 0.04;
+    push([{ x, y, tint: 1, sz: 0.030 }]);
+  }
+
+  // ══ SHOULDERS — wide gentle slope (vai áo) ═══════════════════════════════
+  for (let i = 0; i < 28; i++) {
+    const t = i / 27;
+    // Left shoulder slope
+    const xL = -0.34 - t * 0.55;
+    const yL = -0.58 - t * 0.18 + Math.sin(t * Math.PI) * 0.04;
+    push([{ x: xL, y: yL, tint: 0, sz: 0.034 }]);
+    // Right shoulder slope
+    const xR =  0.34 + t * 0.55;
+    const yR = -0.58 - t * 0.18 + Math.sin(t * Math.PI) * 0.04;
+    push([{ x: xR, y: yR, tint: 0, sz: 0.034 }]);
+  }
+  // Chest interior fill below collar
+  for (let i = 0; i < 38; i++) {
+    const x = (srnd(i * 11 + 1) - 0.5) * 1.60;
+    const y = -0.78 - srnd(i * 17 + 3) * 0.14;
+    push([{ x, y, tint: 0, sz: 0.028 }]);
+  }
+
+  return dots;
+}
+
+/* ── Photo loader: image → ImageData → drone-show dots ──────────────────── */
+const PORTRAIT_IMG_URL = encodeURI("/ảnh bác hồ.jpg");
+
+function useHoChiMinhDots(): PortraitDot[] {
+  const [dots, setDots] = useState<PortraitDot[]>(() => buildHoChiMinhDots());
+
+  useEffect(() => {
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (cancelled) return;
+      // Resize to a high-resolution grid for photographic fidelity.
+      // ~60k cells → ~245×245 square or ~225×270 for 4:5 portrait. After
+      // foreground masking + maxDots cap (8500) we keep facial detail crisp.
+      const TARGET_CELLS = 60000;
+      const ratio = img.height / img.width; // H/W
+      const W = Math.round(Math.sqrt(TARGET_CELLS / ratio));
+      const H = Math.round(W * ratio);
+      const canvas = document.createElement("canvas");
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, W, H);
+      try {
+        const imageData = ctx.getImageData(0, 0, W, H);
+        const built = buildHoChiMinhDotsFromImage(imageData, 8500);
+        if (!cancelled && built.length > 0) setDots(built);
+      } catch (err) {
+        console.warn("[HoChiMinhPortrait] image sampling failed", err);
+      }
+    };
+    img.onerror = (e) => {
+      console.warn("[HoChiMinhPortrait] failed to load portrait image", e);
+    };
+    img.src = PORTRAIT_IMG_URL;
+    return () => { cancelled = true; };
+  }, []);
+
+  return dots;
+}
+
+/* ── Hồ Chí Minh portrait renderer — drone-show LED dots with hover wobble ─ */
+function HoChiMinhPortrait({ reduced }: { reduced: boolean }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const dots = useMemo(() => buildLacBirdDots(), []);
+  const dots = useHoChiMinhDots();
+  // Sharper LED texture — tighter glow falloff so dense grid keeps detail
   const tex = useRadialTexture([
     [0, "rgba(255,255,255,1)"],
-    [0.28, "rgba(255,230,155,0.95)"],
-    [0.65, "rgba(200,130,50,0.55)"],
+    [0.20, "rgba(255,245,210,1)"],
+    [0.45, "rgba(255,210,140,0.55)"],
+    [0.75, "rgba(220,160,70,0.15)"],
     [1, "rgba(0,0,0,0)"],
   ]);
 
@@ -251,11 +407,11 @@ function LacBird({ reduced }: { reduced: boolean }) {
     const c = new THREE.Color();
     for (let i = 0; i < dots.length; i++) {
       const d = dots[i];
-      // Bronze drum color palette from research:
-      if (d.tint === 0) c.set("#FFF2D0");       // warm ivory — body surface
-      else if (d.tint === 1) c.set("#C68B1A");   // Đông Sơn gold — Lý dynasty gilt
-      else if (d.tint === 2) c.set("#FF9632");   // amber-orange — tail/primary tips
-      else c.set("#8B5524");                      // deep copper-bronze — depth
+      // 4-band LED palette — preserves photographic tonal range
+      if (d.tint === 0) c.set("#FFFFFF");        // highlights — pure white
+      else if (d.tint === 1) c.set("#FFE8B8");   // upper midtone — warm white
+      else if (d.tint === 2) c.set("#FFB860");   // mid — warm gold (skin/jacket)
+      else c.set("#D08040");                       // shadow — deep amber
       mesh.setColorAt(i, c);
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -264,46 +420,37 @@ function LacBird({ reduced }: { reduced: boolean }) {
   useFrame((state) => {
     const mesh = ref.current; if (!mesh) return;
     const t = state.clock.elapsedTime;
-    const angle = reduced ? 0 : flapAngle(t);
-    const sinA = Math.sin(angle), cosA = Math.cos(angle);
 
     const g = groupRef.current;
     if (g) {
-      const life = Math.min(t / 1.5, 1), e = 1 - Math.pow(1 - life, 3);
-      g.scale.setScalar(0.52 + e * 0.48);
-      g.position.y = -0.22 + (1 - e) * -0.65;
+      // Initial reveal: scale up + rise into place (like drones taking formation)
+      const life = Math.min(t / 1.8, 1), e = 1 - Math.pow(1 - life, 3);
+      g.scale.setScalar(0.6 + e * 0.46);
+      g.position.y = 0.05 + (1 - e) * -0.55;
       if (!reduced) {
-        // Slow ascending flight (chim Lạc bay lên cao — spiritual ascension)
-        g.position.y += Math.sin(t * 0.65) * 0.06 + t * 0.008;
-        g.rotation.y = Math.sin(t * 0.22) * 0.07;
-        g.rotation.z = Math.sin(t * 0.18) * 0.025; // gentle banking
+        // Gentle drone-formation float — subtle breathing motion
+        g.position.y += Math.sin(t * 0.42) * 0.035;
+        g.rotation.y = Math.sin(t * 0.15) * 0.04;
       }
     }
 
     for (let i = 0; i < dots.length; i++) {
       const p = dots[i];
       const localT = Math.max(0, t - p.delay);
-      const appear = Math.min(localT / 1.1, 1), ae = 1 - Math.pow(1 - appear, 3);
+      const appear = Math.min(localT / 1.4, 1), ae = 1 - Math.pow(1 - appear, 3);
 
-      // Wing flap: rotate around shoulder anchor (anchorY)
+      // Drone hover wobble — each LED jitters independently within ~1cm
       let px = p.bx, py = p.by, pz = p.bz;
-      if (p.flapFactor > 0) {
-        const dy = p.by - p.anchorY;
-        py = p.anchorY + dy * (1 - p.flapFactor) + dy * cosA * p.flapFactor;
-        pz = p.bz + dy * sinA * p.flapFactor;
+      if (!reduced) {
+        px += Math.sin(t * 1.7 + p.phase) * p.hover;
+        py += Math.cos(t * 1.4 + p.phase * 1.3) * p.hover;
+        pz += Math.sin(t * 1.1 + p.phase * 0.7) * p.hover * 0.6;
       }
 
-      // Independent tail feather flutter (lông đuôi rung rinh độc lập)
-      if (p.tailIdx !== undefined && !reduced) {
-        const flutter = Math.sin(t * 2.2 + p.tailIdx * 0.6 + p.phase) * 0.025 * Math.abs(p.by - (-0.28));
-        px += flutter;
-        pz += flutter * 0.5;
-      }
-
-      const twinkle = 0.48 + 0.52 * Math.sin(t * p.twinkleFreq + p.phase);
+      const twinkle = 0.55 + 0.45 * Math.sin(t * p.twinkleFreq + p.phase);
       dummy.position.set(px, py, pz);
       dummy.quaternion.copy(state.camera.quaternion);
-      dummy.scale.setScalar(p.size * ae * (0.48 + twinkle * 0.72));
+      dummy.scale.setScalar(p.size * ae * (0.55 + twinkle * 0.65));
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     }
@@ -312,7 +459,11 @@ function LacBird({ reduced }: { reduced: boolean }) {
 
   return (
     <group ref={groupRef}>
-      <instancedMesh ref={ref} args={[undefined, undefined, dots.length]}>
+      <instancedMesh
+        key={dots.length}
+        ref={ref}
+        args={[undefined, undefined, dots.length]}
+      >
         <planeGeometry args={[1, 1]} />
         <meshBasicMaterial map={tex} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
       </instancedMesh>
@@ -437,24 +588,27 @@ function FlagColorWaves({ reduced, ringsCount=5 }: { reduced: boolean; ringsCoun
   );
 }
 
-/* ── Wingtip ember trail ─────────────────────────────────────────────────── */
-function WingEmbers({ reduced, count=160 }: { reduced: boolean; count?: number }) {
+/* ── Ambient drone-sparkles — extra LED motes drifting around the portrait ─ */
+function AmbientSparkles({ reduced, count=160 }: { reduced: boolean; count?: number }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const tex = useRadialTexture([[0,"rgba(255,255,255,1)"],[0.38,"rgba(255,205,80,0.95)"],[0.75,"rgba(198,139,26,0.52)"],[1,"rgba(0,0,0,0)"]]);
+  const tex = useRadialTexture([[0,"rgba(255,255,255,1)"],[0.38,"rgba(255,225,140,0.92)"],[0.75,"rgba(220,170,80,0.45)"],[1,"rgba(0,0,0,0)"]]);
   const seeds = useMemo(() => Array.from({ length: count }, (_, i) => ({
-    side: (i % 2 === 0 ? -1 : 1) as -1 | 1,
-    baseDx: 1.08 + srnd(i*7+1)*0.42, baseDy: srnd(i*11+3)*0.32,
-    life: 1.5 + srnd(i*13+5)*1.5, period: 2.6 + srnd(i*17+7)*1.4,
-    size: 0.042 + srnd(i*19+9)*0.055, phase: srnd(i*23+11)*Math.PI*2,
-    wobble: 0.04 + srnd(i*29+13)*0.08, wobbleFreq: 0.7 + srnd(i*31+17)*2.2, cm: srnd(i*37+19),
+    // Random scatter around the portrait — wider than its silhouette
+    baseX: (srnd(i*7+1) - 0.5) * 3.4,
+    baseY: (srnd(i*11+3) - 0.5) * 2.6,
+    baseZ: -0.3 + (srnd(i*17+7) - 0.5) * 0.8,
+    period: 3.2 + srnd(i*13+5)*2.2,
+    size: 0.026 + srnd(i*19+9)*0.040, phase: srnd(i*23+11)*Math.PI*2,
+    wobble: 0.05 + srnd(i*29+13)*0.10, wobbleFreq: 0.5 + srnd(i*31+17)*1.6,
+    drift: 0.04 + srnd(i*41+19)*0.06, cm: srnd(i*37+19),
   })), [count]);
   useEffect(() => {
     const mesh = ref.current; if (!mesh) return;
     const c = new THREE.Color();
     for (let i = 0; i < seeds.length; i++) {
       const s = seeds[i];
-      if (s.cm < 0.50) c.set("#FFD86A"); else if (s.cm < 0.88) c.set("#C68B1A"); else c.set("#FFFFFF");
+      if (s.cm < 0.50) c.set("#FFE8B0"); else if (s.cm < 0.88) c.set("#FFD080"); else c.set("#FFFFFF");
       mesh.setColorAt(i, c);
     }
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -462,16 +616,17 @@ function WingEmbers({ reduced, count=160 }: { reduced: boolean; count?: number }
   useFrame((state) => {
     const mesh = ref.current; if (!mesh) return;
     const t = state.clock.elapsedTime;
-    const ang = reduced ? 0 : flapAngle(t), sinA = Math.sin(ang), cosA = Math.cos(ang);
     for (let i = 0; i < seeds.length; i++) {
-      const s = seeds[i], cp = ((t + s.phase) / s.period) % 1;
-      const tipX = s.side * s.baseDx, dy = s.baseDy;
-      const wingY = 0.04 + dy * cosA, wingZ = dy * sinA;
-      const lt = cp * s.life, drift = lt * 1.1, dY = -0.45 * lt * lt;
-      dummy.position.set(tipX + s.side * drift + Math.sin(t * s.wobbleFreq + s.phase) * s.wobble, wingY + dY, wingZ - lt * 0.25);
+      const s = seeds[i];
+      const phaseT = ((t + s.phase) / s.period) % 1;
+      // Slow upward drift + side wobble — like loose LEDs floating
+      const driftY = reduced ? 0 : Math.sin(t * 0.3 + s.phase) * s.drift;
+      const wx = reduced ? 0 : Math.sin(t * s.wobbleFreq + s.phase) * s.wobble;
+      const wy = reduced ? 0 : Math.cos(t * s.wobbleFreq * 0.7 + s.phase) * s.wobble;
+      dummy.position.set(s.baseX + wx, s.baseY + driftY + wy, s.baseZ);
       dummy.quaternion.copy(state.camera.quaternion);
-      const fade = cp < 0.08 ? cp / 0.08 : Math.max(0, 1 - (cp - 0.08) / 0.92);
-      dummy.scale.setScalar(s.size * fade * (0.6 + 0.4 * Math.sin(t * 5 + i)));
+      const fade = 0.4 + 0.6 * Math.abs(Math.sin(phaseT * Math.PI));
+      dummy.scale.setScalar(s.size * fade * (0.6 + 0.4 * Math.sin(t * 4 + i)));
       dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -525,14 +680,15 @@ function Scene({ reduced }: { reduced: boolean }) {
       <DongSonDrumRings reduced={reduced}/>
       <SacredHalo reduced={reduced}/>
       <FlagColorWaves reduced={reduced} ringsCount={5}/>
-      <WingEmbers reduced={reduced} count={reduced?70:160}/>
-      <LacBird reduced={reduced}/>
+      <AmbientSparkles reduced={reduced} count={reduced?70:160}/>
+      <HoChiMinhPortrait reduced={reduced}/>
     </>
   );
 }
 
-export function VietnamMuonNamEffect({ emotion }: Props) {
+export function VietnamMuonNamEffect({ emotion: _emotion }: Props) {
   const reduced = useReducedMotion();
+  void _emotion; // overridden by hard-coded caption below
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <div aria-hidden className="absolute inset-0"
@@ -555,7 +711,7 @@ export function VietnamMuonNamEffect({ emotion }: Props) {
         exit={{ opacity: 0 }} transition={{ delay: 1.4, duration: 0.9 }}>
         <p className="font-cinzel text-sm font-bold uppercase tracking-[0.36em] sm:text-base"
           style={{ color: "#fff2c2", textShadow: "0 0 24px rgba(255,215,0,0.95), 0 2px 18px rgba(200,16,46,0.7), 0 0 60px rgba(255,170,0,0.55)" }}>
-          {emotion}
+          Lãnh Tụ Vĩ Đại
         </p>
       </motion.div>
     </div>
