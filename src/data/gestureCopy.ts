@@ -39,7 +39,7 @@ export const GESTURE_COPY: Record<GestureKind, GestureCopy> = {
     symbol: "✊",
     label: "Nắm bàn tay",
     hint: "Nắm chặt năm ngón tay thành nắm đấm và giữ yên",
-    emotion: "Chim Lạc — hồn thiêng dân tộc",
+    emotion: "Lãnh Tụ Vĩ Đại",
   },
 };
 

@@ -40,7 +40,7 @@ const PRIMARY_LABEL: Record<GestureKind, string> = {
   heart: "Trái tim Việt Nam",
   thumbsUp: "Rồng thiêng Đại Việt",
   wave: "Dải đất hình chữ S",
-  special: "Chim Lạc — hồn dân tộc",
+  special: "Lãnh Tụ Vĩ Đại",
 };
 
 /** Whether the effect uses tsparticles — flips the provider on first use. */

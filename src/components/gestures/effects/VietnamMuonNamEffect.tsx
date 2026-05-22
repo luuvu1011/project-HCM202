@@ -7,7 +7,6 @@ import * as THREE from "three";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import {
   useRadialTexture,
-  useStreakTexture,
 } from "@/components/gestures/effects/cinematicTextures";
 
 interface Props { emotion: string; particlesReady?: boolean; }
@@ -35,8 +34,6 @@ function srnd(s: number): number {
   const x = Math.sin(s * 12.9898 + 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
-
-function flapVelocity(t: number): number { return Math.abs(Math.cos(t * 1.35)); }
 
 type PortraitDot = {
   bx: number; by: number; bz: number;
@@ -348,7 +345,7 @@ function buildHoChiMinhDots(): PortraitDot[] {
 const PORTRAIT_IMG_URL = encodeURI("/ảnh bác hồ.jpg");
 
 function useHoChiMinhDots(): PortraitDot[] {
-  const [dots, setDots] = useState<PortraitDot[]>(() => buildHoChiMinhDots());
+  const [dots, setDots] = useState<PortraitDot[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -356,11 +353,8 @@ function useHoChiMinhDots(): PortraitDot[] {
     img.crossOrigin = "anonymous";
     img.onload = () => {
       if (cancelled) return;
-      // Resize to a high-resolution grid for photographic fidelity.
-      // ~60k cells → ~245×245 square or ~225×270 for 4:5 portrait. After
-      // foreground masking + maxDots cap (8500) we keep facial detail crisp.
       const TARGET_CELLS = 60000;
-      const ratio = img.height / img.width; // H/W
+      const ratio = img.height / img.width;
       const W = Math.round(Math.sqrt(TARGET_CELLS / ratio));
       const H = Math.round(W * ratio);
       const canvas = document.createElement("canvas");
@@ -375,10 +369,11 @@ function useHoChiMinhDots(): PortraitDot[] {
         if (!cancelled && built.length > 0) setDots(built);
       } catch (err) {
         console.warn("[HoChiMinhPortrait] image sampling failed", err);
+        if (!cancelled) setDots(buildHoChiMinhDots());
       }
     };
-    img.onerror = (e) => {
-      console.warn("[HoChiMinhPortrait] failed to load portrait image", e);
+    img.onerror = () => {
+      if (!cancelled) setDots(buildHoChiMinhDots());
     };
     img.src = PORTRAIT_IMG_URL;
     return () => { cancelled = true; };
@@ -419,16 +414,15 @@ function HoChiMinhPortrait({ reduced }: { reduced: boolean }) {
 
   useFrame((state) => {
     const mesh = ref.current; if (!mesh) return;
+    if (dots.length === 0) return;
     const t = state.clock.elapsedTime;
 
     const g = groupRef.current;
     if (g) {
-      // Initial reveal: scale up + rise into place (like drones taking formation)
       const life = Math.min(t / 1.8, 1), e = 1 - Math.pow(1 - life, 3);
       g.scale.setScalar(0.6 + e * 0.46);
       g.position.y = 0.05 + (1 - e) * -0.55;
       if (!reduced) {
-        // Gentle drone-formation float — subtle breathing motion
         g.position.y += Math.sin(t * 0.42) * 0.035;
         g.rotation.y = Math.sin(t * 0.15) * 0.04;
       }
@@ -457,6 +451,8 @@ function HoChiMinhPortrait({ reduced }: { reduced: boolean }) {
     mesh.instanceMatrix.needsUpdate = true;
   });
 
+  if (dots.length === 0) return <group ref={groupRef} />;
+
   return (
     <group ref={groupRef}>
       <instancedMesh
@@ -468,123 +464,6 @@ function HoChiMinhPortrait({ reduced }: { reduced: boolean }) {
         <meshBasicMaterial map={tex} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
       </instancedMesh>
     </group>
-  );
-}
-
-/* ── Đông Sơn drum rings — concentric bronze circles behind the bird ─────── */
-function DongSonDrumRings({ reduced }: { reduced: boolean }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const rings = useRef<THREE.Mesh[]>([]);
-  const N = 6;
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    if (groupRef.current && !reduced) groupRef.current.rotation.z = t * 0.012;
-    for (let i = 0; i < N; i++) {
-      const m = rings.current[i]; if (!m) continue;
-      const pulse = 1 + Math.sin(t * 0.55 + i * 0.4) * 0.015;
-      m.scale.setScalar(pulse);
-      (m.material as THREE.MeshBasicMaterial).opacity = (0.08 + 0.04 * Math.sin(t * 0.7 + i * 0.6));
-    }
-  });
-  return (
-    <group ref={groupRef} position={[0, 0, -1.2]}>
-      {Array.from({ length: N }).map((_, i) => (
-        <mesh key={i} ref={(el) => { if (el) rings.current[i] = el as THREE.Mesh; }}>
-          <ringGeometry args={[0.5 + i * 0.28, 0.5 + i * 0.28 + 0.015, 120]} />
-          <meshBasicMaterial
-            color={i % 2 === 0 ? "#C68B1A" : "#8B5524"}
-            transparent opacity={0.10}
-            side={THREE.DoubleSide} toneMapped={false}
-            depthWrite={false} blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-/* ── Sacred halo with rotating god-rays ──────────────────────────────────── */
-function SacredHalo({ reduced }: { reduced: boolean }) {
-  const meshRef = useRef<THREE.Mesh>(null), raysRef = useRef<THREE.Group>(null);
-  const haloTex = useRadialTexture([
-    [0, "rgba(255,230,140,0.88)"], [0.4, "rgba(198,139,26,0.48)"],
-    [0.75, "rgba(150,60,10,0.20)"], [1, "rgba(0,0,0,0)"],
-  ]);
-  const rayTex = useStreakTexture("rgba(255,220,140,0.85)");
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    if (meshRef.current) {
-      meshRef.current.lookAt(state.camera.position);
-      const e = 1 - Math.pow(1 - Math.min(t / 1.2, 1), 3);
-      meshRef.current.scale.setScalar(5.0 * e * (1 + Math.sin(t * 0.65) * 0.04));
-    }
-    if (raysRef.current && !reduced) raysRef.current.rotation.z = t * 0.048;
-  });
-  return (
-    <>
-      <mesh ref={meshRef} position={[0, 0, -1.8]}>
-        <planeGeometry args={[1, 1]} />
-        <meshBasicMaterial map={haloTex} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
-      </mesh>
-      <group ref={raysRef} position={[0, 0, -2]}>
-        {Array.from({ length: 20 }).map((_, i) => (
-          <mesh key={i} rotation={[0, 0, (i * Math.PI) / 10]}>
-            <planeGeometry args={[0.16, 6.5]} />
-            <meshBasicMaterial map={rayTex} color={i%2===0?"#C68B1A":"#FF6040"} transparent opacity={0.14}
-              blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
-          </mesh>
-        ))}
-      </group>
-    </>
-  );
-}
-
-/* ── Expanding wave rings — each wing flap releases a golden ring ─────────── */
-function FlagColorWaves({ reduced, ringsCount=5 }: { reduced: boolean; ringsCount?: number }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const tex = useRadialTexture([
-    [0, "rgba(255,255,255,1)"],
-    [0.32, "rgba(255,210,80,0.95)"],
-    [0.68, "rgba(200,60,20,0.55)"],
-    [1, "rgba(0,0,0,0)"],
-  ]);
-  const ptsPerRing = 100, total = ringsCount * ptsPerRing;
-  const layout = useMemo(() => Array.from({ length: total }, (_, ii) => {
-    const r = Math.floor(ii / ptsPerRing);
-    const i = ii % ptsPerRing;
-    return { ring: r, angle: (i / ptsPerRing) * Math.PI * 2, szBase: 0.048 + srnd(r*31+i*11)*0.042, vSkew: 0.68 + srnd(r*13+i*5)*0.22, cm: srnd(r*41+i*7) };
-  }), [total]);
-  useEffect(() => {
-    const mesh = ref.current; if (!mesh) return;
-    const c = new THREE.Color();
-    for (let i = 0; i < layout.length; i++) {
-      const p = layout[i];
-      if (p.cm < 0.45) c.set("#FFD86A"); else if (p.cm < 0.82) c.set("#FF5020"); else c.set("#C68B1A");
-      mesh.setColorAt(i, c);
-    }
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [layout]);
-  useFrame((state) => {
-    const mesh = ref.current; if (!mesh) return;
-    const t = state.clock.elapsedTime, period = 2.6;
-    for (let i = 0; i < layout.length; i++) {
-      const p = layout[i], rp = ((t / period + p.ring / ringsCount) % 1);
-      const maxR = reduced ? 2.0 : 3.8, rad = rp * maxR;
-      const fade = rp < 0.08 ? rp / 0.08 : Math.max(0, 1 - (rp - 0.08) / 0.92);
-      const tw = 0.6 + 0.4 * Math.sin(t * 3.8 + i);
-      dummy.position.set(Math.cos(p.angle) * rad, Math.sin(p.angle) * rad * p.vSkew + 0.05, -0.3 + Math.sin(p.angle * 2 + t) * 0.15);
-      dummy.quaternion.copy(state.camera.quaternion);
-      dummy.scale.setScalar(p.szBase * fade * tw);
-      dummy.updateMatrix(); mesh.setMatrixAt(i, dummy.matrix);
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-  });
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, total]}>
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial map={tex} transparent depthWrite={false} toneMapped={false} blending={THREE.AdditiveBlending} />
-    </instancedMesh>
   );
 }
 
@@ -639,6 +518,210 @@ function AmbientSparkles({ reduced, count=160 }: { reduced: boolean; count?: num
   );
 }
 
+/* ── HOA SEN — texture vẽ thủ công + hào quang vàng quanh nhụy ───────────── */
+function useLotusTexture() {
+  return useMemo(() => {
+    const SIZE = 320;
+    const cv = document.createElement("canvas");
+    cv.width = SIZE; cv.height = SIZE;
+    const ctx = cv.getContext("2d")!;
+    const cx = SIZE / 2, cy = SIZE / 2;
+
+    const drawPetal = (
+      rotate: number,
+      reach: number,
+      width: number,
+      stops: Array<[number, string]>,
+    ) => {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rotate);
+      const g = ctx.createRadialGradient(0, -reach * 0.45, 4, 0, -reach * 0.55, reach);
+      for (const [s, c] of stops) g.addColorStop(s, c);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(0, width * 0.18);
+      ctx.quadraticCurveTo(width, -reach * 0.45, 0, -reach);
+      ctx.quadraticCurveTo(-width, -reach * 0.45, 0, width * 0.18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+
+    const PETAL_N = 8;
+    // Outer petals (lớp ngoài, cánh dài, hồng nhạt)
+    for (let i = 0; i < PETAL_N; i++) {
+      const a = (i / PETAL_N) * Math.PI * 2;
+      drawPetal(a, 118, 36, [
+        [0.0, "rgba(255,210,220,0.95)"],
+        [0.55, "rgba(248,168,190,0.78)"],
+        [1.0, "rgba(190,70,110,0.05)"],
+      ]);
+    }
+    // Inner petals (lớp trong, ngắn hơn, sáng hơn, xoay 22.5°)
+    for (let i = 0; i < PETAL_N; i++) {
+      const a = (i / PETAL_N) * Math.PI * 2 + Math.PI / PETAL_N;
+      drawPetal(a, 86, 28, [
+        [0.0, "rgba(255,236,240,1)"],
+        [0.55, "rgba(252,188,206,0.85)"],
+        [1.0, "rgba(210,90,140,0.10)"],
+      ]);
+    }
+    // Lớp trong cùng nhỏ, hơi cong vào tâm
+    for (let i = 0; i < PETAL_N; i++) {
+      const a = (i / PETAL_N) * Math.PI * 2;
+      drawPetal(a, 52, 20, [
+        [0.0, "rgba(255,250,238,1)"],
+        [0.55, "rgba(255,220,200,0.85)"],
+        [1.0, "rgba(220,120,150,0.10)"],
+      ]);
+    }
+    // Nhụy vàng
+    const cg = ctx.createRadialGradient(cx, cy, 1, cx, cy, 30);
+    cg.addColorStop(0.0, "rgba(255,250,210,1)");
+    cg.addColorStop(0.45, "rgba(255,210,80,0.95)");
+    cg.addColorStop(1.0, "rgba(200,140,30,0)");
+    ctx.fillStyle = cg;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+    ctx.fill();
+    // Chấm phấn hoa
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2;
+      const r = 10 + (i % 2) * 5;
+      const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+      const sg = ctx.createRadialGradient(px, py, 0, px, py, 4);
+      sg.addColorStop(0, "rgba(255,250,210,1)");
+      sg.addColorStop(1, "rgba(255,200,80,0)");
+      ctx.fillStyle = sg;
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+    return tex;
+  }, []);
+}
+
+const LOTUS_POSITIONS = [
+  { x: -1.95, y: -1.40, sz: 0.78, ph: 0.0, spin:  0.040, delay: 0.10 },
+  { x:  1.95, y: -1.40, sz: 0.78, ph: 1.4, spin: -0.045, delay: 0.25 },
+  { x: -2.20, y:  0.05, sz: 0.62, ph: 2.6, spin:  0.030, delay: 0.40 },
+  { x:  2.20, y:  0.05, sz: 0.62, ph: 3.8, spin: -0.035, delay: 0.55 },
+  { x: -1.65, y:  1.55, sz: 0.50, ph: 0.7, spin:  0.050, delay: 0.70 },
+  { x:  1.65, y:  1.55, sz: 0.50, ph: 5.0, spin: -0.040, delay: 0.85 },
+] as const;
+
+function LotusFlowers({ reduced }: { reduced: boolean }) {
+  const tex = useLotusTexture();
+  const refs = useRef<(THREE.Mesh | null)[]>([]);
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime;
+    for (let i = 0; i < LOTUS_POSITIONS.length; i++) {
+      const m = refs.current[i]; if (!m) return;
+      const p = LOTUS_POSITIONS[i];
+      const localT = Math.max(0, t - p.delay);
+      const reveal = Math.min(localT / 1.5, 1);
+      const e = 1 - Math.pow(1 - reveal, 3);
+      const float = reduced ? 0 : Math.sin(t * 0.55 + p.ph) * 0.055;
+      const breathe = reduced ? 1 : 1 + Math.sin(t * 0.85 + p.ph) * 0.045;
+      m.position.set(p.x, p.y + float, -0.08);
+      m.rotation.z = reduced ? p.ph : p.ph + t * p.spin;
+      m.scale.setScalar(p.sz * e * breathe);
+      (m.material as THREE.MeshBasicMaterial).opacity = e * 0.95;
+    }
+  });
+
+  return (
+    <>
+      {LOTUS_POSITIONS.map((_, i) => (
+        <mesh key={i} ref={(el) => { refs.current[i] = el; }}>
+          <planeGeometry args={[1, 1]} />
+          <meshBasicMaterial
+            map={tex}
+            transparent
+            opacity={0}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/* ── Cánh hoa sen rơi nhẹ — không khí thơ mộng ───────────────────────────── */
+function FallingPetals({ reduced, count = 18 }: { reduced: boolean; count?: number }) {
+  const ref = useRef<THREE.InstancedMesh>(null);
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const tex = useMemo(() => {
+    const cv = document.createElement("canvas");
+    cv.width = 128; cv.height = 128;
+    const ctx = cv.getContext("2d")!;
+    const g = ctx.createRadialGradient(64, 50, 2, 64, 64, 56);
+    g.addColorStop(0.0, "rgba(255,232,238,1)");
+    g.addColorStop(0.55, "rgba(252,180,200,0.85)");
+    g.addColorStop(1.0, "rgba(200,90,130,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(64, 18);
+    ctx.quadraticCurveTo(110, 64, 64, 116);
+    ctx.quadraticCurveTo(18, 64, 64, 18);
+    ctx.closePath();
+    ctx.fill();
+    const t = new THREE.CanvasTexture(cv);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, []);
+  const seeds = useMemo(() => Array.from({ length: count }, (_, i) => ({
+    x0:   (srnd(i * 7 + 1) - 0.5) * 4.4,
+    fall: 0.18 + srnd(i * 11 + 3) * 0.16,
+    sway: 0.20 + srnd(i * 13 + 5) * 0.30,
+    swayF: 0.35 + srnd(i * 17 + 7) * 0.55,
+    sz:   0.075 + srnd(i * 19 + 9) * 0.075,
+    ph:   srnd(i * 23 + 11) * Math.PI * 2,
+    period: 7 + srnd(i * 29 + 13) * 5,
+    spin: (srnd(i * 31 + 15) - 0.5) * 1.0,
+  })), [count]);
+
+  useFrame((state) => {
+    const mesh = ref.current; if (!mesh) return;
+    const t = state.clock.elapsedTime;
+    for (let i = 0; i < seeds.length; i++) {
+      const s = seeds[i];
+      const cp = ((t + s.ph) / s.period) % 1;
+      const y = 2.2 - cp * (4.4 + s.fall);
+      const x = s.x0 + Math.sin(t * s.swayF + s.ph) * s.sway;
+      const fade = cp < 0.06
+        ? cp / 0.06
+        : cp > 0.92 ? Math.max(0, (1 - cp) / 0.08) : 1;
+      dummy.position.set(x, y, -0.06);
+      dummy.rotation.set(0, 0, reduced ? s.ph : t * s.spin + s.ph);
+      dummy.scale.setScalar(s.sz * fade * (reduced ? 0.7 : 1));
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+  });
+
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, count]}>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial
+        map={tex}
+        transparent
+        depthWrite={false}
+        toneMapped={false}
+        opacity={0.85}
+      />
+    </instancedMesh>
+  );
+}
+
 function VolumetricFog() {
   const mRef = useRef<THREE.Mesh>(null);
   const tex = useRadialTexture([[0,"rgba(50,5,5,0.52)"],[0.5,"rgba(110,28,14,0.28)"],[1,"rgba(0,0,0,0)"]]);
@@ -649,7 +732,7 @@ function VolumetricFog() {
 function PulseLights({ reduced }: { reduced: boolean }) {
   const gRef = useRef<THREE.PointLight>(null), rRef = useRef<THREE.PointLight>(null);
   useFrame((state) => {
-    const t = state.clock.elapsedTime, emit = reduced ? 0.5 : flapVelocity(t);
+    const t = state.clock.elapsedTime, emit = reduced ? 0.5 : 0.5 + Math.sin(t * 0.9) * 0.5;
     if (gRef.current) gRef.current.intensity = 20 + emit * 28;
     if (rRef.current) rRef.current.intensity = 14 + emit * 22;
   });
@@ -677,10 +760,9 @@ function Scene({ reduced }: { reduced: boolean }) {
       <PulseLights reduced={reduced}/>
       <CinematicCam reduced={reduced}/>
       <VolumetricFog/>
-      <DongSonDrumRings reduced={reduced}/>
-      <SacredHalo reduced={reduced}/>
-      <FlagColorWaves reduced={reduced} ringsCount={5}/>
       <AmbientSparkles reduced={reduced} count={reduced?70:160}/>
+      <LotusFlowers reduced={reduced}/>
+      <FallingPetals reduced={reduced} count={reduced?8:18}/>
       <HoChiMinhPortrait reduced={reduced}/>
     </>
   );

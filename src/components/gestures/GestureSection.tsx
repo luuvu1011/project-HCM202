@@ -17,7 +17,7 @@ const GESTURE_LABEL: Record<GestureKind, string> = {
   heart: "Trái tim",
   thumbsUp: "Ngón cái",
   wave: "Vẫy tay",
-  special: "Bàn tay mở",
+  special: "Nắm tay",
 };
 
 export function GestureSection() {

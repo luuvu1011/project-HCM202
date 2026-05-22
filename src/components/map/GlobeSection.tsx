@@ -24,13 +24,17 @@ const GlobeMap = dynamic(() => import("./GlobeMap").then(m => ({ default: m.Glob
 });
 
 const PORTS = [
-  { name: "Bến Nhà Rồng", location: "Sài Gòn · 1911" },
-  { name: "Marseille",     location: "Pháp · 1911" },
-  { name: "New York",      location: "Hoa Kỳ · 1912" },
-  { name: "London",        location: "Anh · 1913" },
-  { name: "Paris",         location: "Pháp · 1917–1923" },
-  { name: "Liên Xô",       location: "Moskva · 1923–1924" },
-  { name: "Quảng Châu",    location: "Trung Quốc · 1924–1927" },
+  { name: "Bến Nhà Rồng", location: "Sài Gòn · 5/6/1911 — khởi hành" },
+  { name: "Marseille",     location: "Pháp · 6/7/1911 — đặt chân lên đất Pháp" },
+  { name: "Dakar",         location: "Châu Phi · 1911–1912 — vòng tàu Tây Phi" },
+  { name: "New York",      location: "Hoa Kỳ · 1912–1913" },
+  { name: "London",        location: "Anh · 1913–1917" },
+  { name: "Paris",         location: "Pháp · 1917–1923 — Yêu sách 1919, đọc Lê-nin 1920" },
+  { name: "Liên Xô",       location: "Moskva · 6/1923–1924 — học Đại học Phương Đông" },
+  { name: "Quảng Châu",    location: "Trung Quốc · 11/1924–1927 — Hội VN Cách mạng Thanh niên" },
+  { name: "Bangkok",       location: "Thái Lan · 1928–1929 — vận động kiều bào" },
+  { name: "Hồng Kông",     location: "3/2/1930 — thành lập Đảng Cộng sản Việt Nam" },
+  { name: "Pác Bó",        location: "Cao Bằng · 28/1/1941 — về nước trực tiếp lãnh đạo" },
 ];
 
 export function GlobeSection() {
@@ -61,10 +65,10 @@ export function GlobeSection() {
           </p>
           <h2 className="font-cinzel font-bold text-white"
             style={{ fontSize: "clamp(1.8rem,4vw,3rem)" }}>
-            Hành Trình <span style={{ color: "#FFD700" }}>5 Châu</span>
+            Hành Trình <span style={{ color: "#FFD700" }}>30 Năm</span>
           </h2>
           <p className="mt-3 font-playfair italic text-sm text-white/55">
-            Địa cầu 3D tương tác — xoay và khám phá từng chặng hải trình lịch sử.
+            1911–1941 · 11 chặng qua 4 châu lục — từ Bến Nhà Rồng đến Pác Bó, khép trọn cuộc tìm đường cứu nước.
           </p>
         </motion.div>
 

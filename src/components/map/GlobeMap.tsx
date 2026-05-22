@@ -15,21 +15,28 @@ const TEX_SPECULAR = `${EARTH_BASE}/earth_specular_2048.jpg`;
 const TEX_CLOUDS = `${EARTH_BASE}/earth_clouds_1024.png`;
 
 // ─── Port data (real lat/lon) ────────────────────────────────────────────────
+// 11 chặng chính 1911-1941: từ Bến Nhà Rồng → vòng quanh thế giới → Pác Bó về nước.
+// Nguồn: Hồ sơ Hồ Chí Minh — Viện Hồ Chí Minh & lãnh tụ Đảng; Trần Dân Tiên (1948).
 const PORTS = [
-  { id: "ben-nha-rong", name: "Bến Nhà Rồng", lat: 10.768, lon: 106.703, year: "1911", color: "#FFD700" },
-  { id: "marseille",    name: "Marseille",     lat: 43.297, lon:   5.370, year: "1911", color: "#C8102E" },
-  { id: "new-york",     name: "New York",      lat: 40.713, lon: -74.006, year: "1912", color: "#C8102E" },
-  { id: "london",       name: "London",        lat: 51.507, lon:  -0.128, year: "1913", color: "#C8102E" },
-  { id: "paris",        name: "Paris",         lat: 48.857, lon:   2.352, year: "1917–1923", color: "#C8102E" },
-  { id: "lien-xo",      name: "Liên Xô",       lat: 55.756, lon:  37.617, year: "1923–1924", color: "#FFD700" },
-  { id: "quang-chau",   name: "Quảng Châu",    lat: 23.129, lon: 113.264, year: "1924–1927", color: "#FFD700" },
+  { id: "ben-nha-rong", name: "Bến Nhà Rồng", lat: 10.768, lon: 106.703, year: "5/6/1911",   color: "#FFD700" },
+  { id: "marseille",    name: "Marseille",     lat: 43.297, lon:   5.370, year: "7/1911",     color: "#C8102E" },
+  { id: "dakar",        name: "Dakar",         lat: 14.692, lon: -17.447, year: "1911–1912",  color: "#C8102E" },
+  { id: "new-york",     name: "New York",      lat: 40.713, lon: -74.006, year: "1912–1913",  color: "#C8102E" },
+  { id: "london",       name: "London",        lat: 51.507, lon:  -0.128, year: "1913–1917",  color: "#C8102E" },
+  { id: "paris",        name: "Paris",         lat: 48.857, lon:   2.352, year: "1917–1923",  color: "#C8102E" },
+  { id: "lien-xo",      name: "Liên Xô",       lat: 55.756, lon:  37.617, year: "1923–1924",  color: "#FFD700" },
+  { id: "quang-chau",   name: "Quảng Châu",    lat: 23.129, lon: 113.264, year: "1924–1927",  color: "#FFD700" },
+  { id: "bangkok",      name: "Bangkok",       lat: 13.756, lon: 100.501, year: "1928–1929",  color: "#C8102E" },
+  { id: "hong-kong",    name: "Hồng Kông",     lat: 22.319, lon: 114.169, year: "3/2/1930",   color: "#FFD700" },
+  { id: "pac-bo",       name: "Pác Bó",        lat: 22.810, lon: 106.040, year: "28/1/1941",  color: "#FFD700" },
 ];
 
 // ─── Historical route waypoints [lat, lon] — sea via Suez, land via Trans-Siberian ──
 // Each leg corresponds to consecutive PORTS. Waypoints follow real geography so arcs
 // stay over water on sea legs and over land on rail legs.
 const ROUTE_LEGS: [number, number][][] = [
-  // Leg 1: Bến Nhà Rồng → Marseille (1911, SEA via Suez Canal on Latouche-Tréville)
+  // Leg 1: Bến Nhà Rồng → Marseille (5/6/1911 – 6/7/1911, SEA — tàu Latouche-Tréville)
+  // Tuyến qua Singapore, Colombo, Aden, kênh đào Suez (đi qua Hồng Hải, Địa Trung Hải).
   [
     [10.77, 106.70],   // Saigon
     [3.50, 105.00],    // South China Sea
@@ -43,34 +50,45 @@ const ROUTE_LEGS: [number, number][][] = [
     [41.00,  8.00],    // West of Sardinia
     [43.30,  5.37],    // Marseille
   ],
-  // Leg 2: Marseille → New York (1911–1912, SEA via Gibraltar across Atlantic)
+  // Leg 2: Marseille → Dakar (cuối 1911 – 1912, SEA — tàu chạy dọc bờ Tây Phi)
+  // Bác làm phụ bếp trên các tàu Pháp, đi qua nhiều cảng châu Phi: Tangier, Casablanca,
+  // Nouakchott… Dakar là điểm dừng được Người ghi lại rõ nhất (chứng kiến đàn áp).
   [
     [43.30,   5.37],   // Marseille
-    [38.00,   0.00],   // West Mediterranean
-    [36.14,  -5.34],   // Gibraltar Strait
-    [37.00, -12.00],   // Off Portugal
-    [39.00, -25.00],   // Azores area
-    [41.00, -45.00],   // Mid Atlantic
-    [41.00, -60.00],   // West Atlantic
+    [37.50,  -0.50],   // West Med
+    [35.89,  -5.32],   // Tangier (Morocco)
+    [33.57,  -7.59],   // Casablanca
+    [27.00, -13.00],   // Western Sahara coast
+    [20.92, -17.07],   // Nouakchott (Mauritania)
+    [14.69, -17.45],   // Dakar (Sénégal)
+  ],
+  // Leg 3: Dakar → New York (1912, SEA vượt Đại Tây Dương)
+  [
+    [14.69, -17.45],   // Dakar
+    [16.00, -24.50],   // Cape Verde area
+    [22.00, -40.00],   // South-mid Atlantic
+    [28.00, -55.00],   // Mid Atlantic
+    [33.00, -65.00],   // Off Bermuda
+    [38.00, -72.00],   // Off New Jersey
     [40.71, -74.01],   // New York
   ],
-  // Leg 3: New York → London (1913, SEA across North Atlantic)
+  // Leg 4: New York → London (cuối 1913, SEA Bắc Đại Tây Dương)
   [
     [40.71, -74.01],   // New York
-    [44.00, -55.00],   // Atlantic
-    [50.00, -35.00],   // North Atlantic
-    [52.00, -15.00],   // Approaching UK
+    [44.00, -55.00],
+    [50.00, -35.00],
+    [52.00, -15.00],
     [51.51,  -0.13],   // London
   ],
-  // Leg 4: London → Paris (1917, SEA across Channel + LAND)
+  // Leg 5: London → Paris (1917, SEA eo Manche + LAND)
   [
     [51.51, -0.13],    // London
     [51.00,  1.40],    // Dover Strait
     [50.95,  1.85],    // Calais
-    [49.55,  2.31],    // Northern France
+    [49.55,  2.31],
     [48.86,  2.35],    // Paris
   ],
-  // Leg 5: Paris → Liên Xô/Moscow (1923, LAND by train through Europe)
+  // Leg 6: Paris → Liên Xô / Moskva (6/1923, LAND — bí mật qua Đức, Ba Lan)
   [
     [48.86,  2.35],    // Paris
     [50.85,  4.35],    // Brussels
@@ -79,7 +97,7 @@ const ROUTE_LEGS: [number, number][][] = [
     [53.90, 27.57],    // Minsk
     [55.76, 37.62],    // Moscow
   ],
-  // Leg 6: Moscow → Quảng Châu (1924, LAND Trans-Siberian + China rail)
+  // Leg 7: Moskva → Quảng Châu (11/1924, LAND Đường sắt xuyên Siberia + Mãn Châu)
   [
     [55.76,  37.62],   // Moscow
     [56.84,  60.61],   // Yekaterinburg (cross Urals)
@@ -89,6 +107,54 @@ const ROUTE_LEGS: [number, number][][] = [
     [39.90, 116.40],   // Beijing
     [30.59, 114.31],   // Wuhan
     [23.13, 113.26],   // Guangzhou
+  ],
+  // Leg 8: Quảng Châu → Bangkok (4/1927 – 7/1928, vòng đường lưu vong qua châu Âu)
+  // Sau đảo chính Tưởng Giới Thạch, Người trốn khỏi Quảng Châu → Vladivostok → trở lại
+  // Moskva → Berlin → Brussels → tàu thuỷ Ý → kênh Suez → Singapore → Bangkok.
+  [
+    [23.13, 113.26],   // Guangzhou
+    [25.00, 121.00],   // Taiwan Strait (đi vòng tránh HK)
+    [35.00, 130.00],   // East China Sea
+    [43.13, 131.92],   // Vladivostok
+    [56.00,  92.00],   // Trans-Siberian (Krasnoyarsk)
+    [55.76,  37.62],   // Moscow (ghé qua)
+    [52.52,  13.40],   // Berlin
+    [50.85,   4.35],   // Brussels
+    [44.41,   8.93],   // Genoa, Ý — lên tàu thuỷ
+    [35.90,  14.51],   // Malta
+    [31.27,  32.30],   // Port Said (Suez)
+    [12.78,  45.04],   // Aden
+    [5.93,   79.86],   // Colombo
+    [1.30,  103.85],   // Singapore
+    [13.75, 100.50],   // Bangkok
+  ],
+  // Leg 9: Bangkok → Hồng Kông (cuối 1929 – 3/2/1930, SEA về Đông Á)
+  // Tới Hồng Kông để chủ trì Hội nghị hợp nhất ba tổ chức cộng sản, thành lập Đảng.
+  [
+    [13.75, 100.50],   // Bangkok
+    [10.50, 104.50],   // Cambodia coast
+    [15.00, 109.00],   // Off Vietnam coast
+    [19.50, 111.00],   // Hainan Strait
+    [22.32, 114.17],   // Hong Kong
+  ],
+  // Leg 10: Hồng Kông → Pác Bó (1930 – 28/1/1941, vòng dài: HK→Thượng Hải→Moskva→TQ→VN)
+  // Bị Anh bắt giam ở HK (1931), thả 1933 → Hạ Môn → Thượng Hải → Vladivostok → Moskva
+  // (học 1934-1938) → Diên An → Quế Lâm → Côn Minh → vượt biên giới Cao Bằng, Pác Bó.
+  [
+    [22.32, 114.17],   // Hong Kong (1930)
+    [24.45, 118.08],   // Hạ Môn (Amoy)
+    [31.23, 121.47],   // Shanghai (1933)
+    [43.13, 131.92],   // Vladivostok
+    [56.00,  92.00],   // Trans-Siberian
+    [55.76,  37.62],   // Moscow (1934–1938)
+    [55.04,  82.93],   // Novosibirsk (đi về phía Đông)
+    [52.29, 104.30],   // Irkutsk
+    [39.90, 116.40],   // Beijing
+    [36.60, 109.49],   // Yan'an (Diên An, 1938)
+    [25.27, 110.30],   // Quế Lâm (Guilin, 1939)
+    [25.04, 102.72],   // Côn Minh (Kunming, 1940)
+    [23.50, 105.30],   // Biên giới Trung – Việt
+    [22.81, 106.04],   // Pác Bó (28/1/1941)
   ],
 ];
 
@@ -352,10 +418,45 @@ function PortMarkers({
               </mesh>
             )}
 
-            {/* Label */}
-            {reached && (
+            {/* Label — apply per-port radial offset so HK/Quảng Châu and
+                Pác Bó/Bến Nhà Rồng (cluster gần nhau) không chồng nhãn. */}
+            {reached && (() => {
+              // Tangent vectors on globe surface
+              const east = new THREE.Vector3(outward.z, 0, -outward.x).normalize();
+              const north = new THREE.Vector3()
+                .crossVectors(outward, east)
+                .normalize();
+              const base: [number, number, number] = [
+                outward.x * 0.32,
+                outward.y * 0.32,
+                outward.z * 0.32,
+              ];
+              let labelPos: [number, number, number] = base;
+              if (port.id === "hong-kong") {
+                // Đẩy nhãn HK xuống phía Đông-Nam để tách khỏi Quảng Châu
+                labelPos = [
+                  base[0] + east.x * 0.30 - north.x * 0.18,
+                  base[1] + east.y * 0.30 - north.y * 0.18,
+                  base[2] + east.z * 0.30 - north.z * 0.18,
+                ];
+              } else if (port.id === "pac-bo") {
+                // Đẩy nhãn Pác Bó hơi lên trên-Tây để rõ ràng giáp biên giới
+                labelPos = [
+                  base[0] - east.x * 0.18 + north.x * 0.18,
+                  base[1] - east.y * 0.18 + north.y * 0.18,
+                  base[2] - east.z * 0.18 + north.z * 0.18,
+                ];
+              } else if (port.id === "quang-chau") {
+                // Đẩy QC lên Bắc để tách khỏi HK
+                labelPos = [
+                  base[0] + north.x * 0.22,
+                  base[1] + north.y * 0.22,
+                  base[2] + north.z * 0.22,
+                ];
+              }
+              return (
               <Html
-                position={[outward.x * 0.32, outward.y * 0.32, outward.z * 0.32]}
+                position={labelPos}
                 distanceFactor={5}
                 style={{ pointerEvents: "none" }}
               >
@@ -392,7 +493,8 @@ function PortMarkers({
                   </p>
                 </div>
               </Html>
-            )}
+              );
+            })()}
           </group>
         );
       })}
