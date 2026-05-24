@@ -126,9 +126,18 @@ export function Footer() {
                 style={{ color: "rgba(255,215,0,0.7)" }}>
                 Nhóm Thực Hiện
               </p>
-              <div className="space-y-2 text-sm" style={{ color: "rgba(245,230,200,0.70)" }}>
-                <p>Dự án học phần HCM202</p>
-                <p>Đại học FPT TP. Hồ Chí Minh</p>
+              <div className="text-sm" style={{ color: "rgba(245,230,200,0.70)" }}>
+                <div className="space-y-2">
+                  <p>Lưu Trần Quốc Vũ</p>
+                  <p>Nguyễn Đình Lực</p>
+                  <p>Hoàng Văn Huy</p>
+                  <p>Đặng Thị Thanh Ngân</p>
+                  <p>Nguyễn Kiên Cường</p>
+                  <div className="pt-2">
+                    <p>Dự án học phần HCM202</p>
+                    <p>Đại học FPT TP. Hồ Chí Minh</p>
+                  </div>
+                </div>
                 <p className="mt-3 text-xs" style={{ color: "rgba(245,230,200,0.32)" }}>
                   Giao diện minh họa — luôn đối chiếu tài liệu sử học chính thống.
                 </p>

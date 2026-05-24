@@ -10,6 +10,7 @@ const PARTICLES = Array.from({ length: 16 }, (_, i) => ({
   delay: `${(i * 0.73) % 5}s`, duration: `${5 + (i % 4) * 1.5}s`, size: i % 4 === 0 ? 3 : 2,
 }));
 
+
 export function HeroSection() {
   const shipRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
@@ -131,6 +132,19 @@ export function HeroSection() {
       <div aria-hidden className="pointer-events-none absolute inset-0"
         style={{ background: "radial-gradient(ellipse 115% 95% at 50% 50%, transparent 32%, rgba(90,5,15,0.65) 100%)" }} />
 
+      {/* Ảnh chân dung */}
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 z-[3] hidden translate-x-10 items-center pr-2 md:flex md:translate-x-12 lg:pr-6">
+        <img
+          src="/%E1%BA%A3nh_b%C3%A1c_h%E1%BB%93-removebg-preview.png"
+          alt=""
+          className="h-[70vh] w-auto max-w-[32vw] object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.45)]"
+          style={{ filter: "brightness(1.08) contrast(1.05) saturate(1.05)" }}
+          decoding="async"
+        />
+      </div>
+
+
+
       {/* Nội dung chính */}
       <div ref={textRef} className="relative z-10 mx-auto max-w-4xl px-5 text-center sm:px-8">
         <p data-h data-h-stamp className="mb-5 font-cinzel text-[11px] uppercase tracking-[0.6em]"
@@ -140,10 +154,15 @@ export function HeroSection() {
         <h1 className="font-cinzel font-bold leading-[1.06]"
           style={{ fontSize: "clamp(2.4rem,6.2vw,5rem)" }}>
           <span data-h data-h-l1 className="block text-white">Hành Trình Ra Đi</span>
-          <span data-h data-h-l2 className="block" style={{ color: "#FFD700" }}>Tìm Đường Cứu Nước</span>
-          <span data-h data-h-l3 className="block font-playfair font-medium italic text-white/80"
-            style={{ fontSize: "clamp(1.2rem,2.8vw,2rem)", marginTop: "0.4em" }}>
-            của Nguyễn Tất Thành
+          <span data-h data-h-l2 className="block whitespace-nowrap"
+            style={{ color: "#FFD700", fontSize: "clamp(2.0rem,5.6vw,4.6rem)" }}>
+            Tìm Đường Cứu Nước
+          </span>
+          <span data-h data-h-l3
+            className="mt-4 flex flex-col items-center gap-1 font-playfair font-semibold leading-none"
+            style={{ fontSize: "clamp(2.2rem,6.2vw,4.8rem)" }}>
+            <span className="text-white/60 text-[0.5em] leading-none">của</span>
+            <span className="text-[#FFD700] whitespace-nowrap leading-none">Nguyễn Tất Thành</span>
           </span>
         </h1>
         <p data-h data-h-sub className="mx-auto mt-7 max-w-xl font-playfair italic text-base leading-relaxed sm:text-lg text-white/70">
